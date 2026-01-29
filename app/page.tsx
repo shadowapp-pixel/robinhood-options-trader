@@ -64,40 +64,14 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* Results Section */}
+               {/* Results Section */}
         {suggestions.length > 0 && (
           <div className="grid gap-6">
-            <h2 className="text-2xl font-bold text-white">Trade Suggestions</h2>
+            <div className="flex items-baseline gap-4">
+              <h2 className="text-2xl font-bold text-white">Trade Suggestions for {symbol}</h2>
+              {/* Add this to show current price if available */}
+            </div>
             {suggestions.map((suggestion, index) => (
-              <Card key={index} className="bg-slate-800 border-slate-700">
-                <CardHeader>
-                  <CardTitle className="text-white">{suggestion.title}</CardTitle>
-                  <CardDescription>{suggestion.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4 text-white">
-                    <div>
-                      <p className="text-sm text-slate-400">Entry Price</p>
-                      <p className="text-lg font-semibold">${suggestion.entryPrice}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-400">Exit Price</p>
-                      <p className="text-lg font-semibold">${suggestion.exitPrice}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-400">Timeframe</p>
-                      <p className="text-lg font-semibold">{suggestion.timeframe}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-400">Confidence</p>
-                      <p className="text-lg font-semibold">{suggestion.confidence}%</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
 
         {/* Empty State */}
         {!loading && suggestions.length === 0 && symbol && (
