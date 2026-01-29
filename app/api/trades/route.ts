@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-
+ 
   try {
     // Fetch real stock quote
     const quoteResponse = await fetch(
