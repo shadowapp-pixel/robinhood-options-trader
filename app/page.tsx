@@ -33,7 +33,7 @@ export default function Home() {
       <div className="max-w-6xl mx-auto">
         <div className="mb-12">
           <h1 className="text-4xl font-bold text-white mb-2">
-            Robinhood Options Trader
+            Hood Options
           </h1>
           <p className="text-xl text-slate-300">
             Wall Street-grade trade suggestions for Robinhood option contracts
