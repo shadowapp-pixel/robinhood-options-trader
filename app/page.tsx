@@ -31,7 +31,6 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="mb-12">
           <h1 className="text-4xl font-bold text-white mb-2">
             Robinhood Options Trader
@@ -41,7 +40,6 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Search Section */}
         <Card className="mb-8 bg-slate-800 border-slate-700">
           <CardHeader>
             <CardTitle className="text-white">Find Trade Suggestions</CardTitle>
@@ -66,7 +64,6 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* Current Price Display */}
         {stockData && stockData.currentPrice && (
           <Card className="mb-8 bg-slate-800 border-slate-700">
             <CardContent className="pt-6">
@@ -81,7 +78,6 @@ export default function Home() {
           </Card>
         )}
 
-        {/* Results Section */}
         {suggestions.length > 0 && (
           <div className="grid gap-6">
             <h2 className="text-2xl font-bold text-white">Trade Suggestions</h2>
@@ -116,7 +112,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Empty State */}
         {!loading && suggestions.length === 0 && symbol && (
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="pt-6">
