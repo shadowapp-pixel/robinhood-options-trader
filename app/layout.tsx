@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Robinhood Options Trader",
+  title: "Hood Options",
   description: "Live trade suggestions for Robinhood option contracts",
 };
 
