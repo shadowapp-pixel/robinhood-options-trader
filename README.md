@@ -1,4 +1,4 @@
-# Robinhood Options Trader
+# Hood Options 
 
 A web-based application that provides live trade suggestions for Robinhood option contracts using statistical analysis, economic trends, and technical analysis.
 
