@@ -96,15 +96,16 @@ function buildSuggestions(
 ) {
   const move = VOL_MOVE[volTier] ?? VOL_MOVE.medium;
 
-  // Premium estimate for ATM 1DTE option (rough approximation)
-  const premiumEst = parseFloat((price * move * 2).toFixed(2));
+  // Premium per share estimate for ATM 1DTE option
+  const premiumPerShare = parseFloat((price * move * 2).toFixed(2));
+  // Robinhood contract = 100 shares — this is what you actually pay
+  const contractCost   = parseFloat((premiumPerShare * 100).toFixed(2));
+  const contractTarget = parseFloat((contractCost * 1.2).toFixed(2));
 
-  const callEntry  = parseFloat(price.toFixed(2));
-  const callExit   = parseFloat((price * (1 + move)).toFixed(2));
-  const putEntry   = parseFloat(price.toFixed(2));
-  const putExit    = parseFloat((price * (1 - move)).toFixed(2));
-  const callTarget = parseFloat((premiumEst * 1.2).toFixed(2));
-  const putTarget  = parseFloat((premiumEst * 1.2).toFixed(2));
+  const callEntry = parseFloat(price.toFixed(2));
+  const callExit  = parseFloat((price * (1 + move)).toFixed(2));
+  const putEntry  = parseFloat(price.toFixed(2));
+  const putExit   = parseFloat((price * (1 - move)).toFixed(2));
 
   const callConf = direction === 'CALL'
     ? Math.min(88, signalConfidence + Math.abs(changePercent) * 2)
@@ -122,8 +123,9 @@ function buildSuggestions(
         : `Low-conviction reversal setup. Needs $${callExit} to capture 20% premium gain.`,
       entryPrice: callEntry.toFixed(2),
       exitPrice: callExit.toFixed(2),
-      premiumEst: premiumEst.toFixed(2),
-      premiumTarget: callTarget.toFixed(2),
+      premiumPerShare: premiumPerShare.toFixed(2),
+      contractCost: contractCost.toFixed(2),
+      contractTarget: contractTarget.toFixed(2),
       strike: `~$${callEntry.toFixed(0)} ATM`,
       timeframe: '1 day (0DTE)',
       confidence: parseFloat(callConf.toFixed(2)),
@@ -136,8 +138,9 @@ function buildSuggestions(
         : `Low-conviction reversal setup. Needs $${putExit} to capture 20% premium gain.`,
       entryPrice: putEntry.toFixed(2),
       exitPrice: putExit.toFixed(2),
-      premiumEst: premiumEst.toFixed(2),
-      premiumTarget: putTarget.toFixed(2),
+      premiumPerShare: premiumPerShare.toFixed(2),
+      contractCost: contractCost.toFixed(2),
+      contractTarget: contractTarget.toFixed(2),
       strike: `~$${putEntry.toFixed(0)} ATM`,
       timeframe: '1 day (0DTE)',
       confidence: parseFloat(putConf.toFixed(2)),

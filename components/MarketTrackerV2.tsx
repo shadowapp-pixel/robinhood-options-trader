@@ -14,8 +14,9 @@ interface Suggestion {
   description: string;
   entryPrice: string;
   exitPrice: string;
-  premiumEst: string;
-  premiumTarget: string;
+  premiumPerShare: string;
+  contractCost: string;
+  contractTarget: string;
   strike: string;
   timeframe: string;
   confidence: number;
@@ -112,12 +113,16 @@ function SuggestionCard({ s, isPrimary }: { s: Suggestion; isPrimary: boolean })
           <p className={`font-semibold text-sm ${isCall ? 'text-green-400' : 'text-red-400'}`}>${s.exitPrice}</p>
         </div>
         <div>
-          <p className="text-slate-400 text-xs">Est. Premium</p>
-          <p className="text-white font-semibold text-sm">${s.premiumEst}</p>
+          <p className="text-slate-400 text-xs">Premium / Share</p>
+          <p className="text-white font-semibold text-sm">${s.premiumPerShare}</p>
         </div>
         <div>
-          <p className="text-slate-400 text-xs">+20% Target</p>
-          <p className="text-yellow-400 font-semibold text-sm">${s.premiumTarget}</p>
+          <p className="text-slate-400 text-xs">Contract Cost (×100)</p>
+          <p className="text-white font-semibold text-sm">${s.contractCost}</p>
+        </div>
+        <div>
+          <p className="text-slate-400 text-xs">+20% Contract Target</p>
+          <p className="text-yellow-400 font-semibold text-sm">${s.contractTarget}</p>
         </div>
         <div>
           <p className="text-slate-400 text-xs">Strike</p>
