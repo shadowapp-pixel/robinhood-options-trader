@@ -14,7 +14,7 @@ interface TrackerEntry {
   type: string;
   price: number | null;
   changePercent: number | null;
-  indicators: { ema8: number; vwap: number; rsi3: number } | null;
+  indicators: { ema8proxy: number; vwap: number; rangePos: number } | null;
   signal: string;
   direction: string;
   conditions: Condition[];
@@ -137,21 +137,21 @@ function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number
             {/* Indicators */}
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-slate-900/60 rounded-lg p-2 text-center">
-                <div className="text-slate-400 text-xs mb-1">EMA(8)</div>
-                <div className="text-white text-sm font-mono">${entry.indicators.ema8.toFixed(2)}</div>
+                <div className="text-slate-400 text-xs mb-1">Open</div>
+                <div className="text-white text-sm font-mono">${entry.indicators.ema8proxy.toFixed(2)}</div>
               </div>
               <div className="bg-slate-900/60 rounded-lg p-2 text-center">
                 <div className="text-slate-400 text-xs mb-1">VWAP</div>
                 <div className="text-white text-sm font-mono">${entry.indicators.vwap.toFixed(2)}</div>
               </div>
               <div className="bg-slate-900/60 rounded-lg p-2 text-center">
-                <div className="text-slate-400 text-xs mb-1">RSI(3)</div>
+                <div className="text-slate-400 text-xs mb-1">Range %</div>
                 <div className={`text-sm font-mono font-semibold ${
-                  entry.indicators.rsi3 < 30 ? 'text-green-400' :
-                  entry.indicators.rsi3 > 70 ? 'text-red-400' :
+                  entry.indicators.rangePos < 30 ? 'text-green-400' :
+                  entry.indicators.rangePos > 70 ? 'text-red-400' :
                   'text-white'
                 }`}>
-                  {entry.indicators.rsi3.toFixed(1)}
+                  {entry.indicators.rangePos.toFixed(1)}
                 </div>
               </div>
             </div>
