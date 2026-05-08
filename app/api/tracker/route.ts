@@ -1,19 +1,27 @@
 import { NextResponse } from 'next/server';
 
 const WATCHLIST = [
-  { symbol: 'AAPL',  name: 'Apple',                type: 'mag7'  },
-  { symbol: 'MSFT',  name: 'Microsoft',             type: 'mag7'  },
-  { symbol: 'GOOGL', name: 'Alphabet',              type: 'mag7'  },
-  { symbol: 'AMZN',  name: 'Amazon',                type: 'mag7'  },
-  { symbol: 'META',  name: 'Meta',                  type: 'mag7'  },
-  { symbol: 'NVDA',  name: 'NVIDIA',                type: 'mag7'  },
-  { symbol: 'TSLA',  name: 'Tesla',                 type: 'mag7'  },
-  { symbol: 'QQQ',   name: 'Nasdaq 100 ETF',        type: 'etf'   },
-  { symbol: 'SPY',   name: 'S&P 500 ETF',           type: 'etf'   },
-  { symbol: 'VXX',   name: 'VIX Futures ETF',        type: 'index' },
+  { symbol: 'AAPL',  name: 'Apple',           type: 'mag7',  volTier: 'low'    },
+  { symbol: 'MSFT',  name: 'Microsoft',        type: 'mag7',  volTier: 'low'    },
+  { symbol: 'GOOGL', name: 'Alphabet',         type: 'mag7',  volTier: 'low'    },
+  { symbol: 'AMZN',  name: 'Amazon',           type: 'mag7',  volTier: 'medium' },
+  { symbol: 'META',  name: 'Meta',             type: 'mag7',  volTier: 'medium' },
+  { symbol: 'NVDA',  name: 'NVIDIA',           type: 'mag7',  volTier: 'high'   },
+  { symbol: 'TSLA',  name: 'Tesla',            type: 'mag7',  volTier: 'high'   },
+  { symbol: 'QQQ',   name: 'Nasdaq 100 ETF',   type: 'etf',   volTier: 'low'    },
+  { symbol: 'SPY',   name: 'S&P 500 ETF',      type: 'etf',   volTier: 'low'    },
+  { symbol: 'VXX',   name: 'VIX Futures ETF',  type: 'index', volTier: 'high'   },
 ];
 
-// Finnhub quote: c=current, h=high, l=low, o=open, pc=prev close, dp=change%
+// Stock move needed for ATM 1DTE option to gain ~20%
+// Formula: moveNeeded = (targetOptionGain × premium%) / delta
+// Delta ≈ 0.5 for ATM, premium% varies by vol tier
+const VOL_MOVE: Record<string, number> = {
+  low:    0.005,  // 0.5% stock move → ~20% ATM 1DTE gain
+  medium: 0.008,  // 0.8%
+  high:   0.012,  // 1.2%
+};
+
 async function fetchQuote(symbol: string, apiKey: string) {
   const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`;
   const res = await fetch(url, { cache: 'no-store' });
@@ -23,12 +31,10 @@ async function fetchQuote(symbol: string, apiKey: string) {
   return data as { c: number; h: number; l: number; o: number; pc: number; dp: number };
 }
 
-// Signal logic adapted from the bot — using quote fields as proxies:
-//   VWAP proxy  → (H + L + C) / 3  (standard typical price)
-//   EMA(8) proxy → today's open     (intraday trend anchor)
-//   RSI(3) proxy → range position   (C - L) / (H - L) × 100
-//     range < 30 = intraday pullback  (maps to RSI < 30 = CALL setup)
-//     range > 70 = intraday extension (maps to RSI > 70 = PUT setup)
+// Signal logic using quote fields as proxies:
+//   VWAP proxy     → (H + L + C) / 3
+//   Trend anchor   → today's open (replaces EMA8)
+//   Range position → (C - L) / (H - L) × 100 (replaces RSI3)
 function runSignal(c: number, h: number, l: number, o: number) {
   const vwap = (h + l + c) / 3;
   const ema8proxy = o;
@@ -77,6 +83,68 @@ function runSignal(c: number, h: number, l: number, o: number) {
   };
 }
 
+// Generate 1-day options suggestions targeting 20% premium gain.
+// Entry = current stock price (where to enter the position).
+// Exit  = stock price target at which the ATM option gains ~20%.
+function buildSuggestions(
+  symbol: string,
+  price: number,
+  changePercent: number,
+  direction: string,
+  signalConfidence: number,
+  volTier: string,
+) {
+  const move = VOL_MOVE[volTier] ?? VOL_MOVE.medium;
+
+  // Premium estimate for ATM 1DTE option (rough approximation)
+  const premiumEst = parseFloat((price * move * 2).toFixed(2));
+
+  const callEntry  = parseFloat(price.toFixed(2));
+  const callExit   = parseFloat((price * (1 + move)).toFixed(2));
+  const putEntry   = parseFloat(price.toFixed(2));
+  const putExit    = parseFloat((price * (1 - move)).toFixed(2));
+  const callTarget = parseFloat((premiumEst * 1.2).toFixed(2));
+  const putTarget  = parseFloat((premiumEst * 1.2).toFixed(2));
+
+  const callConf = direction === 'CALL'
+    ? Math.min(88, signalConfidence + Math.abs(changePercent) * 2)
+    : Math.max(40, signalConfidence - 20);
+  const putConf  = direction === 'PUT'
+    ? Math.min(88, signalConfidence + Math.abs(changePercent) * 2)
+    : Math.max(40, signalConfidence - 20);
+
+  return [
+    {
+      type: 'CALL',
+      title: `${symbol} Call Option — ${direction === 'CALL' ? 'Bullish Momentum' : 'Counter-trend Play'}`,
+      description: direction === 'CALL'
+        ? `Uptrend confirmed. Stock needs to reach $${callExit} for ~20% premium gain.`
+        : `Low-conviction reversal setup. Needs $${callExit} to capture 20% premium gain.`,
+      entryPrice: callEntry.toFixed(2),
+      exitPrice: callExit.toFixed(2),
+      premiumEst: premiumEst.toFixed(2),
+      premiumTarget: callTarget.toFixed(2),
+      strike: `~$${callEntry.toFixed(0)} ATM`,
+      timeframe: '1 day (0DTE)',
+      confidence: parseFloat(callConf.toFixed(2)),
+    },
+    {
+      type: 'PUT',
+      title: `${symbol} Put Option — ${direction === 'PUT' ? 'Bearish Pressure' : 'Counter-trend Play'}`,
+      description: direction === 'PUT'
+        ? `Downtrend confirmed. Stock needs to reach $${putExit} for ~20% premium gain.`
+        : `Low-conviction reversal setup. Needs $${putExit} to capture 20% premium gain.`,
+      entryPrice: putEntry.toFixed(2),
+      exitPrice: putExit.toFixed(2),
+      premiumEst: premiumEst.toFixed(2),
+      premiumTarget: putTarget.toFixed(2),
+      strike: `~$${putEntry.toFixed(0)} ATM`,
+      timeframe: '1 day (0DTE)',
+      confidence: parseFloat(putConf.toFixed(2)),
+    },
+  ];
+}
+
 export async function GET() {
   const apiKey = process.env.FINNHUB_API_KEY;
   if (!apiKey) {
@@ -84,9 +152,10 @@ export async function GET() {
   }
 
   const settled = await Promise.allSettled(
-    WATCHLIST.map(async ({ symbol, name, type }) => {
+    WATCHLIST.map(async ({ symbol, name, type, volTier }) => {
       const q = await fetchQuote(symbol, apiKey);
       const { signal, direction, conditions, allPass, confidence, indicators } = runSignal(q.c, q.h, q.l, q.o);
+      const suggestions = buildSuggestions(symbol, q.c, q.dp, direction, confidence, volTier);
 
       return {
         symbol,
@@ -100,6 +169,7 @@ export async function GET() {
         conditions,
         allPass,
         confidence,
+        suggestions,
         error: null,
       };
     })
@@ -120,6 +190,7 @@ export async function GET() {
       conditions: [],
       allPass: false,
       confidence: 0,
+      suggestions: [],
       error: (result.reason as Error).message,
     };
   });

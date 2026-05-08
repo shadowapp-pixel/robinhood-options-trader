@@ -8,6 +8,19 @@ interface Condition {
   pass: boolean;
 }
 
+interface Suggestion {
+  type: 'CALL' | 'PUT';
+  title: string;
+  description: string;
+  entryPrice: string;
+  exitPrice: string;
+  premiumEst: string;
+  premiumTarget: string;
+  strike: string;
+  timeframe: string;
+  confidence: number;
+}
+
 interface TrackerEntry {
   symbol: string;
   name: string;
@@ -20,6 +33,7 @@ interface TrackerEntry {
   conditions: Condition[];
   allPass: boolean;
   confidence: number;
+  suggestions: Suggestion[];
   error: string | null;
 }
 
@@ -61,7 +75,66 @@ function VixGauge({ vix }: { vix: number }) {
 
   return (
     <div className={`text-xs font-semibold ${color}`}>
-      VIX {label} ({vix >= 20 ? 'Wider spreads advised' : 'Normal conditions'})
+      VXX {label} ({vix >= 20 ? 'Wider spreads advised' : 'Normal conditions'})
+    </div>
+  );
+}
+
+function SuggestionCard({ s, isPrimary }: { s: Suggestion; isPrimary: boolean }) {
+  const isCall = s.type === 'CALL';
+  const accentBorder = isCall ? 'border-green-500/30' : 'border-red-500/30';
+  const accentBg    = isCall ? 'bg-green-500/5'      : 'bg-red-500/5';
+  const accentText  = isCall ? 'text-green-400'      : 'text-red-400';
+
+  return (
+    <div className={`rounded-lg border ${isPrimary ? accentBorder + ' ' + accentBg : 'border-slate-700/60 bg-slate-900/40'} p-3`}>
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <div className={`text-sm font-semibold ${isPrimary ? accentText : 'text-slate-300'}`}>
+            {s.title}
+          </div>
+          <div className="text-slate-500 text-xs mt-0.5">{s.description}</div>
+        </div>
+        {isPrimary && (
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${accentBorder} ${accentText} ml-2 shrink-0`}>
+            {s.type}
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3">
+        <div>
+          <p className="text-slate-400 text-xs">Entry Price</p>
+          <p className="text-white font-semibold text-sm">${s.entryPrice}</p>
+        </div>
+        <div>
+          <p className="text-slate-400 text-xs">Exit Price</p>
+          <p className={`font-semibold text-sm ${isCall ? 'text-green-400' : 'text-red-400'}`}>${s.exitPrice}</p>
+        </div>
+        <div>
+          <p className="text-slate-400 text-xs">Est. Premium</p>
+          <p className="text-white font-semibold text-sm">${s.premiumEst}</p>
+        </div>
+        <div>
+          <p className="text-slate-400 text-xs">+20% Target</p>
+          <p className="text-yellow-400 font-semibold text-sm">${s.premiumTarget}</p>
+        </div>
+        <div>
+          <p className="text-slate-400 text-xs">Strike</p>
+          <p className="text-white font-semibold text-sm">{s.strike}</p>
+        </div>
+        <div>
+          <p className="text-slate-400 text-xs">Timeframe</p>
+          <p className="text-white font-semibold text-sm">{s.timeframe}</p>
+        </div>
+      </div>
+
+      <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center justify-between">
+        <span className="text-slate-500 text-xs">Confidence</span>
+        <span className={`text-sm font-bold ${isPrimary ? accentText : 'text-slate-400'}`}>
+          {s.confidence.toFixed(2)}%
+        </span>
+      </div>
     </div>
   );
 }
@@ -85,7 +158,7 @@ function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number
     );
   }
 
-  const priceStr = entry.price !== null ? `$${entry.price.toFixed(2)}` : '—';
+  const priceStr  = entry.price !== null ? `$${entry.price.toFixed(2)}` : '—';
   const changeStr = entry.changePercent !== null
     ? `${entry.changePercent >= 0 ? '+' : ''}${entry.changePercent.toFixed(2)}%`
     : '—';
@@ -93,30 +166,25 @@ function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number
 
   const isPrime = entry.allPass && entry.signal !== 'NEUTRAL';
   const borderClass = isPrime
-    ? entry.signal === 'CALL'
-      ? 'border-green-500/50 bg-green-500/5'
-      : 'border-red-500/50 bg-red-500/5'
+    ? entry.signal === 'CALL' ? 'border-green-500/50 bg-green-500/5' : 'border-red-500/50 bg-red-500/5'
     : 'border-slate-700 bg-slate-800/60';
 
   return (
     <Card className={`${borderClass} transition-all duration-300`}>
       <CardContent className="pt-4 pb-4">
+        {/* Header row */}
         <div
           className="flex items-center justify-between cursor-pointer"
           onClick={() => setExpanded(v => !v)}
         >
-          <div className="flex items-center gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-white font-bold">{entry.symbol}</span>
-                {isPrime && (
-                  <span className="text-xs text-yellow-400 font-semibold animate-pulse">
-                    ★ PRIME
-                  </span>
-                )}
-              </div>
-              <span className="text-slate-400 text-xs">{entry.name}</span>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-white font-bold">{entry.symbol}</span>
+              {isPrime && (
+                <span className="text-xs text-yellow-400 font-semibold animate-pulse">★ PRIME</span>
+              )}
             </div>
+            <span className="text-slate-400 text-xs">{entry.name}</span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -132,8 +200,9 @@ function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number
           </div>
         </div>
 
+        {/* Expanded detail */}
         {expanded && entry.indicators && (
-          <div className="mt-4 border-t border-slate-700 pt-4 space-y-3">
+          <div className="mt-4 border-t border-slate-700 pt-4 space-y-4">
             {/* Indicators */}
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-slate-900/60 rounded-lg p-2 text-center">
@@ -148,8 +217,7 @@ function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number
                 <div className="text-slate-400 text-xs mb-1">Range %</div>
                 <div className={`text-sm font-mono font-semibold ${
                   entry.indicators.rangePos < 30 ? 'text-green-400' :
-                  entry.indicators.rangePos > 70 ? 'text-red-400' :
-                  'text-white'
+                  entry.indicators.rangePos > 70 ? 'text-red-400' : 'text-white'
                 }`}>
                   {entry.indicators.rangePos.toFixed(1)}
                 </div>
@@ -158,7 +226,7 @@ function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number
 
             {/* Signal conditions */}
             <div className="space-y-1.5">
-              <div className="text-slate-400 text-xs font-semibold mb-1.5">30-MIN SIGNAL CONDITIONS</div>
+              <div className="text-slate-400 text-xs font-semibold tracking-wider mb-1.5">SIGNAL CONDITIONS</div>
               {entry.conditions.map((c, i) => (
                 <div key={i} className="flex items-center gap-2 text-xs">
                   <span>{c.pass ? '✅' : '🚫'}</span>
@@ -167,10 +235,26 @@ function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number
               ))}
             </div>
 
+            {/* Trade suggestions */}
+            {entry.suggestions.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-slate-400 text-xs font-semibold tracking-wider">
+                  1-DAY OPTIONS TRADE SUGGESTIONS
+                </div>
+                {entry.suggestions.map((s, i) => (
+                  <SuggestionCard
+                    key={i}
+                    s={s}
+                    isPrimary={s.type === entry.direction}
+                  />
+                ))}
+              </div>
+            )}
+
             {/* VIX risk note */}
             {vixLevel !== null && vixLevel >= 20 && (
               <div className="text-xs text-yellow-400/80 bg-yellow-400/5 border border-yellow-400/20 rounded px-2 py-1.5">
-                ⚠ VIX {vixLevel.toFixed(1)} — elevated volatility, use wider stops on options
+                ⚠ VXX {vixLevel.toFixed(1)} — elevated volatility, use wider stops on options
               </div>
             )}
           </div>
@@ -181,14 +265,14 @@ function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number
 }
 
 export default function MarketTracker() {
-  const [data, setData] = useState<TrackerEntry[]>([]);
+  const [data, setData]           = useState<TrackerEntry[]>([]);
   const [timestamp, setTimestamp] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]     = useState(true);
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL_MS / 1000);
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/tracker');
+      const res  = await fetch('/api/tracker');
       const json: TrackerResponse = await res.json();
       setData(json.data);
       setTimestamp(json.timestamp);
@@ -206,24 +290,21 @@ export default function MarketTracker() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Countdown timer
   useEffect(() => {
     const tick = setInterval(() => setCountdown(c => Math.max(0, c - 1)), 1000);
     return () => clearInterval(tick);
   }, []);
 
-  const vixEntry = data.find(d => d.symbol === 'VIX');
-  const vixLevel = vixEntry?.price ?? null;
-
-  const mag7 = data.filter(d => d.type === 'mag7');
-  const etfs = data.filter(d => d.type === 'etf');
-  const indices = data.filter(d => d.type === 'index');
-
+  const vxxEntry     = data.find(d => d.symbol === 'VXX');
+  const vixLevel     = vxxEntry?.price ?? null;
+  const mag7         = data.filter(d => d.type === 'mag7');
+  const etfs         = data.filter(d => d.type === 'etf');
+  const indices      = data.filter(d => d.type === 'index');
   const primeSignals = data.filter(d => d.allPass && d.signal !== 'NEUTRAL');
 
   return (
     <div className="space-y-6">
-      {/* Header bar */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
@@ -265,37 +346,25 @@ export default function MarketTracker() {
 
       {/* Mag 7 */}
       <div>
-        <h3 className="text-slate-400 text-xs font-semibold tracking-widest uppercase mb-3">
-          Magnificent 7
-        </h3>
+        <h3 className="text-slate-400 text-xs font-semibold tracking-widest uppercase mb-3">Magnificent 7</h3>
         <div className="grid gap-2">
-          {mag7.map(entry => (
-            <TickerCard key={entry.symbol} entry={entry} vixLevel={vixLevel} />
-          ))}
+          {mag7.map(entry => <TickerCard key={entry.symbol} entry={entry} vixLevel={vixLevel} />)}
         </div>
       </div>
 
       {/* ETFs */}
       <div>
-        <h3 className="text-slate-400 text-xs font-semibold tracking-widest uppercase mb-3">
-          Major ETFs
-        </h3>
+        <h3 className="text-slate-400 text-xs font-semibold tracking-widest uppercase mb-3">Major ETFs</h3>
         <div className="grid gap-2">
-          {etfs.map(entry => (
-            <TickerCard key={entry.symbol} entry={entry} vixLevel={vixLevel} />
-          ))}
+          {etfs.map(entry => <TickerCard key={entry.symbol} entry={entry} vixLevel={vixLevel} />)}
         </div>
       </div>
 
-      {/* Indices */}
+      {/* Volatility */}
       <div>
-        <h3 className="text-slate-400 text-xs font-semibold tracking-widest uppercase mb-3">
-          Volatility
-        </h3>
+        <h3 className="text-slate-400 text-xs font-semibold tracking-widest uppercase mb-3">Volatility</h3>
         <div className="grid gap-2">
-          {indices.map(entry => (
-            <TickerCard key={entry.symbol} entry={entry} vixLevel={vixLevel} />
-          ))}
+          {indices.map(entry => <TickerCard key={entry.symbol} entry={entry} vixLevel={vixLevel} />)}
         </div>
       </div>
     </div>
