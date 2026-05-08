@@ -56,34 +56,43 @@ function calcVWAP(candles: Candle[]): number | null {
   return cumVol === 0 ? null : cumTPV / cumVol;
 }
 
-async function fetchCandles(symbol: string, apiKey: string): Promise<Candle[]> {
-  const to = Math.floor(Date.now() / 1000);
-  // ~100 30-min candles (~2 trading days)
-  const from = to - 30 * 60 * 120;
+// Yahoo Finance — free, no auth, supports 30-min intraday
+async function fetchCandles(symbol: string): Promise<Candle[]> {
+  // Yahoo uses ^VIX for VIX index
+  const yahooSymbol = symbol === 'VIX' ? '%5EVIX' : symbol;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=30m&range=2d`;
 
-  // Finnhub uses ^VIX for the volatility index
-  const finnhubSymbol = symbol === 'VIX' ? '^VIX' : symbol;
-  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${finnhubSymbol}&resolution=30&from=${from}&to=${to}&token=${apiKey}`;
+  const res = await fetch(url, {
+    cache: 'no-store',
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+  });
 
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Finnhub HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`Yahoo Finance HTTP ${res.status}`);
 
-  const data = await res.json();
-  if (data.s !== 'ok' || !data.t || data.t.length === 0) {
-    throw new Error('No candle data returned');
+  const json = await res.json();
+  const result = json?.chart?.result?.[0];
+  if (!result) throw new Error('No data from Yahoo Finance');
+
+  const timestamps: number[] = result.timestamp ?? [];
+  const quote = result.indicators?.quote?.[0];
+  if (!quote || timestamps.length === 0) throw new Error('Empty candle data');
+
+  const candles: Candle[] = [];
+  for (let i = 0; i < timestamps.length; i++) {
+    const o = quote.open?.[i];
+    const h = quote.high?.[i];
+    const l = quote.low?.[i];
+    const c = quote.close?.[i];
+    const v = quote.volume?.[i] ?? 0;
+    if (o == null || h == null || l == null || c == null) continue;
+    candles.push({ time: timestamps[i], o, h, l, c, v });
   }
 
-  return (data.t as number[]).map((time: number, i: number) => ({
-    time,
-    o: data.o[i],
-    h: data.h[i],
-    l: data.l[i],
-    c: data.c[i],
-    v: data.v[i],
-  }));
+  if (candles.length === 0) throw new Error('No valid candles');
+  return candles;
 }
 
-// Exact same signal logic as the bot (EMA8 + VWAP + RSI3 + proximity)
+// Same signal logic as the bot: EMA(8) + VWAP + RSI(3) + VWAP proximity
 function runSignal(price: number, ema8: number, vwap: number, rsi3: number) {
   const bullishBias = price > vwap && price > ema8;
   const bearishBias = price < vwap && price < ema8;
@@ -95,14 +104,14 @@ function runSignal(price: number, ema8: number, vwap: number, rsi3: number) {
 
   if (bullishBias) {
     direction = 'CALL';
-    conditions.push({ label: 'Price above VWAP', pass: price > vwap });
-    conditions.push({ label: 'Price above EMA(8)', pass: price > ema8 });
+    conditions.push({ label: 'Price above VWAP', pass: true });
+    conditions.push({ label: 'Price above EMA(8)', pass: true });
     conditions.push({ label: 'RSI(3) < 30 — pullback in uptrend', pass: rsi3 < 30 });
     conditions.push({ label: 'Within 1.5% of VWAP', pass: distFromVWAP < 1.5 });
   } else if (bearishBias) {
     direction = 'PUT';
-    conditions.push({ label: 'Price below VWAP', pass: price < vwap });
-    conditions.push({ label: 'Price below EMA(8)', pass: price < ema8 });
+    conditions.push({ label: 'Price below VWAP', pass: true });
+    conditions.push({ label: 'Price below EMA(8)', pass: true });
     conditions.push({ label: 'RSI(3) > 70 — reversal in downtrend', pass: rsi3 > 70 });
     conditions.push({ label: 'Within 1.5% of VWAP', pass: distFromVWAP < 1.5 });
   } else {
@@ -113,24 +122,13 @@ function runSignal(price: number, ema8: number, vwap: number, rsi3: number) {
   const allPass = passCount === conditions.length;
   const confidence = Math.round((passCount / Math.max(conditions.length, 1)) * 100);
 
-  return {
-    signal: allPass ? direction : 'NEUTRAL' as const,
-    direction,
-    conditions,
-    allPass,
-    confidence,
-  };
+  return { signal: allPass ? direction : ('NEUTRAL' as const), direction, conditions, allPass, confidence };
 }
 
 export async function GET() {
-  const apiKey = process.env.FINNHUB_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'FINNHUB_API_KEY not configured' }, { status: 500 });
-  }
-
   const settled = await Promise.allSettled(
     WATCHLIST.map(async ({ symbol, name, type }) => {
-      const candles = await fetchCandles(symbol, apiKey);
+      const candles = await fetchCandles(symbol);
       const closes = candles.map(c => c.c);
 
       if (closes.length < 10) throw new Error('Insufficient candle data');
