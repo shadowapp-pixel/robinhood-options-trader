@@ -41,49 +41,62 @@ export async function GET(request: NextRequest) {
     // Generate intelligent suggestions based on real data
     const suggestions = [];
 
-    // Bullish call option (if stock is trending up)
+    // 0DTE ATM premium estimate (per share): ~0.4% of price for low-vol, more for high-vol
+    const premiumPerShare = parseFloat((currentPrice * 0.004 + Math.abs(changePercent) * 0.001 * currentPrice).toFixed(2));
+    const contractCost    = parseFloat((premiumPerShare * 100).toFixed(2));
+    const contractTarget  = parseFloat((contractCost * 1.2).toFixed(2));
+
+    // 0DTE CALL — stock needs ~0.4% move up for ~20% premium gain
     if (change > 0) {
+      const exitPrice = parseFloat((currentPrice * 1.004).toFixed(2));
       suggestions.push({
-        title: `${symbol} Call Option - Bullish Momentum`,
-        description: `Stock up ${changePercent.toFixed(2)}% today. Momentum suggests continued upside.`,
-        entryPrice: (currentPrice * 1.02).toFixed(2),
-        exitPrice: (currentPrice * 1.08).toFixed(2),
-        timeframe: '2-4 weeks',
-        confidence: Math.min(85, 70 + Math.abs(changePercent)),
-      });
-    }
-
-    // Bearish put option (if stock is trending down)
-    if (change < 0) {
-      suggestions.push({
-        title: `${symbol} Put Option - Bearish Pressure`,
-        description: `Stock down ${Math.abs(changePercent).toFixed(2)}% today. Downward pressure detected.`,
-        entryPrice: (currentPrice * 0.98).toFixed(2),
-        exitPrice: (currentPrice * 0.92).toFixed(2),
-        timeframe: '1-3 weeks',
-        confidence: Math.min(85, 70 + Math.abs(changePercent)),
-      });
-    }
-
-    // Neutral spread strategy (always available)
-    suggestions.push({
-      title: `${symbol} Iron Condor - Range-Bound Strategy`,
-      description: `Current price: $${currentPrice.toFixed(2)}. Profit from low volatility.`,
-      entryPrice: (currentPrice * 0.97).toFixed(2),
-      exitPrice: (currentPrice * 1.03).toFixed(2),
-      timeframe: '3-5 weeks',
-      confidence: 72,
-    });
-
-    // Add at-the-money straddle for high volatility
-    if (Math.abs(changePercent) > 3) {
-      suggestions.push({
-        title: `${symbol} Long Straddle - High Volatility Play`,
-        description: `Significant ${changePercent > 0 ? 'upward' : 'downward'} movement. Volatility opportunity.`,
+        title: `${symbol} Call Option — Bullish Momentum`,
+        description: `Up ${changePercent.toFixed(2)}% today. Needs $${exitPrice} for ~20% premium gain.`,
         entryPrice: currentPrice.toFixed(2),
-        exitPrice: (currentPrice * (changePercent > 0 ? 1.10 : 0.90)).toFixed(2),
-        timeframe: '1-2 weeks',
-        confidence: Math.min(88, 75 + Math.abs(changePercent) / 2),
+        exitPrice: exitPrice.toFixed(2),
+        premiumPerShare: premiumPerShare.toFixed(2),
+        contractCost: contractCost.toFixed(2),
+        contractTarget: contractTarget.toFixed(2),
+        strike: `~$${Math.round(currentPrice)} ATM`,
+        timeframe: '0DTE (Today)',
+        confidence: Math.min(85, 70 + Math.abs(changePercent)),
+      });
+    }
+
+    // 0DTE PUT — stock needs ~0.4% move down for ~20% premium gain
+    if (change < 0) {
+      const exitPrice = parseFloat((currentPrice * 0.996).toFixed(2));
+      suggestions.push({
+        title: `${symbol} Put Option — Bearish Pressure`,
+        description: `Down ${Math.abs(changePercent).toFixed(2)}% today. Needs $${exitPrice} for ~20% premium gain.`,
+        entryPrice: currentPrice.toFixed(2),
+        exitPrice: exitPrice.toFixed(2),
+        premiumPerShare: premiumPerShare.toFixed(2),
+        contractCost: contractCost.toFixed(2),
+        contractTarget: contractTarget.toFixed(2),
+        strike: `~$${Math.round(currentPrice)} ATM`,
+        timeframe: '0DTE (Today)',
+        confidence: Math.min(85, 70 + Math.abs(changePercent)),
+      });
+    }
+
+    // 0DTE Straddle — bet on big move in either direction
+    if (Math.abs(changePercent) > 1.5) {
+      const straddleCost   = parseFloat((premiumPerShare * 2 * 100).toFixed(2));
+      const straddleTarget = parseFloat((straddleCost * 1.2).toFixed(2));
+      suggestions.push({
+        title: `${symbol} Straddle — High Volatility Play`,
+        description: `${Math.abs(changePercent).toFixed(2)}% move today. Buy both ATM call + put for a big directional move.`,
+        entryPrice: currentPrice.toFixed(2),
+        exitPrice: changePercent > 0
+          ? (currentPrice * 1.008).toFixed(2)
+          : (currentPrice * 0.992).toFixed(2),
+        premiumPerShare: (premiumPerShare * 2).toFixed(2),
+        contractCost: straddleCost.toFixed(2),
+        contractTarget: straddleTarget.toFixed(2),
+        strike: `~$${Math.round(currentPrice)} ATM`,
+        timeframe: '0DTE (Today)',
+        confidence: Math.min(88, 72 + Math.abs(changePercent) / 2),
       });
     }
 

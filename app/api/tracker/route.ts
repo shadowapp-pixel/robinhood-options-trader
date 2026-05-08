@@ -13,13 +13,13 @@ const WATCHLIST = [
   { symbol: 'VXX',   name: 'VIX Futures ETF',  type: 'index', volTier: 'high'   },
 ];
 
-// Stock move needed for ATM 1DTE option to gain ~20%
-// Formula: moveNeeded = (targetOptionGain × premium%) / delta
-// Delta ≈ 0.5 for ATM, premium% varies by vol tier
+// Stock move needed for ATM 0DTE option to gain ~20%
+// 0DTE premiums are thinner — smaller moves produce larger % gains
+// Delta ≈ 0.5 for ATM, gamma is much higher intraday
 const VOL_MOVE: Record<string, number> = {
-  low:    0.005,  // 0.5% stock move → ~20% ATM 1DTE gain
-  medium: 0.008,  // 0.8%
-  high:   0.012,  // 1.2%
+  low:    0.003,  // 0.3% stock move → ~20% ATM 0DTE gain (SPY, QQQ, AAPL, MSFT, GOOGL)
+  medium: 0.005,  // 0.5%                                  (AMZN, META)
+  high:   0.008,  // 0.8%                                  (NVDA, TSLA, VXX)
 };
 
 async function fetchQuote(symbol: string, apiKey: string) {
@@ -127,7 +127,7 @@ function buildSuggestions(
       contractCost: contractCost.toFixed(2),
       contractTarget: contractTarget.toFixed(2),
       strike: `~$${callEntry.toFixed(0)} ATM`,
-      timeframe: '1 day (0DTE)',
+      timeframe: '0DTE (Today)',
       confidence: parseFloat(callConf.toFixed(2)),
     },
     {
@@ -142,7 +142,7 @@ function buildSuggestions(
       contractCost: contractCost.toFixed(2),
       contractTarget: contractTarget.toFixed(2),
       strike: `~$${putEntry.toFixed(0)} ATM`,
-      timeframe: '1 day (0DTE)',
+      timeframe: '0DTE (Today)',
       confidence: parseFloat(putConf.toFixed(2)),
     },
   ];

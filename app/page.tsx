@@ -132,12 +132,28 @@ export default function Home() {
                           <p className="text-lg font-semibold">${suggestion.exitPrice}</p>
                         </div>
                         <div>
+                          <p className="text-sm text-slate-400">Premium / Share</p>
+                          <p className="text-lg font-semibold">${suggestion.premiumPerShare}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-400">Contract Cost (×100)</p>
+                          <p className="text-lg font-semibold">${suggestion.contractCost}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-400">+20% Contract Target</p>
+                          <p className="text-lg font-semibold text-yellow-400">${suggestion.contractTarget}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-400">Strike</p>
+                          <p className="text-lg font-semibold">{suggestion.strike}</p>
+                        </div>
+                        <div>
                           <p className="text-sm text-slate-400">Timeframe</p>
                           <p className="text-lg font-semibold">{suggestion.timeframe}</p>
                         </div>
                         <div>
                           <p className="text-sm text-slate-400">Confidence</p>
-                          <p className="text-lg font-semibold">{suggestion.confidence}%</p>
+                          <p className="text-lg font-semibold">{suggestion.confidence.toFixed(2)}%</p>
                         </div>
                       </div>
                     </CardContent>
