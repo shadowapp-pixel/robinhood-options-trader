@@ -10,7 +10,7 @@ const WATCHLIST = [
   { symbol: 'TSLA',  name: 'Tesla',                 type: 'mag7'  },
   { symbol: 'QQQ',   name: 'Nasdaq 100 ETF',        type: 'etf'   },
   { symbol: 'SPY',   name: 'S&P 500 ETF',           type: 'etf'   },
-  { symbol: '^VIX',  name: 'CBOE Volatility Index', type: 'index' },
+  { symbol: 'VXX',   name: 'VIX Futures ETF',        type: 'index' },
 ];
 
 // Finnhub quote: c=current, h=high, l=low, o=open, pc=prev close, dp=change%
@@ -89,7 +89,7 @@ export async function GET() {
       const { signal, direction, conditions, allPass, confidence, indicators } = runSignal(q.c, q.h, q.l, q.o);
 
       return {
-        symbol: symbol === '^VIX' ? 'VIX' : symbol,
+        symbol,
         name,
         type,
         price: q.c,
@@ -109,7 +109,7 @@ export async function GET() {
     const result = settled[i];
     if (result.status === 'fulfilled') return result.value;
     return {
-      symbol: symbol === '^VIX' ? 'VIX' : symbol,
+      symbol,
       name,
       type,
       price: null,
