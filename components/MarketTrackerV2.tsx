@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 interface Condition  { label: string; pass: boolean; }
 interface Suggestion {
@@ -37,7 +37,38 @@ interface TrackerEntry {
 }
 interface TrackerResponse { data: TrackerEntry[]; timestamp: string; }
 
+interface AlertToast {
+  id: number;
+  symbol: string;
+  name: string;
+  signal: 'CALL' | 'PUT';
+  price: number;
+  confidence: number;
+  firedAt: Date;
+}
+
 const REFRESH_MS = 30_000;
+const TOAST_TTL  = 12_000; // ms before auto-dismiss
+
+function playAlertBeep(signal: 'CALL' | 'PUT') {
+  try {
+    const ctx  = new AudioContext();
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+
+    const freqs = signal === 'CALL' ? [660, 880] : [440, 330];
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.connect(gain);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.25, ctx.currentTime + i * 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.18 + 0.35);
+      osc.start(ctx.currentTime + i * 0.18);
+      osc.stop(ctx.currentTime + i * 0.18 + 0.35);
+    });
+  } catch { /* browser may block autoplay */ }
+}
 
 // ─── Market session ───────────────────────────────────────────────────────────
 
@@ -166,6 +197,80 @@ function SuggestionCard({ s, isPrimary }: { s: Suggestion; isPrimary: boolean })
           <span className={`font-bold font-mono ${isPrimary ? accentText : 'text-slate-400'}`}>{s.confidence.toFixed(2)}%</span>
         </div>
         <ConfidenceBar value={s.confidence} color={isPrimary ? barColor : 'bg-slate-600'} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Alert toast ──────────────────────────────────────────────────────────────
+
+function AlertToastCard({ toast, onDismiss }: { toast: AlertToast; onDismiss: () => void }) {
+  const [progress, setProgress] = useState(100);
+  const isCall  = toast.signal === 'CALL';
+
+  useEffect(() => {
+    const step = 100 / (TOAST_TTL / 100);
+    const t = setInterval(() => setProgress(p => Math.max(0, p - step)), 100);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div
+      className={`relative flex flex-col gap-2 rounded-xl border px-4 py-3 shadow-2xl backdrop-blur-sm overflow-hidden
+        ${isCall
+          ? 'bg-[#0a1a12] border-emerald-500/50 shadow-emerald-900/40'
+          : 'bg-[#1a0a0e] border-rose-500/50 shadow-rose-900/40'
+        }`}
+      style={{ minWidth: 260, maxWidth: 320 }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-black px-2 py-0.5 rounded border tracking-widest
+            ${isCall ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-rose-500/20 text-rose-400 border-rose-500/40'}`}>
+            {toast.signal}
+          </span>
+          <span className={`text-sm font-bold ${isCall ? 'text-emerald-300' : 'text-rose-300'}`}>
+            {toast.symbol}
+          </span>
+          <span className="text-slate-500 text-xs">{toast.name}</span>
+        </div>
+        <button
+          onClick={onDismiss}
+          className="text-slate-600 hover:text-slate-300 text-base leading-none ml-2 transition-colors"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="flex items-end justify-between">
+        <div>
+          <div className={`text-[10px] uppercase tracking-widest font-semibold ${isCall ? 'text-emerald-600' : 'text-rose-600'}`}>
+            All conditions met
+          </div>
+          <div className="text-white font-mono font-bold text-base mt-0.5">
+            ${toast.price.toFixed(2)}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-slate-500 text-[10px] uppercase tracking-wider">Confidence</div>
+          <div className={`font-bold font-mono text-sm ${isCall ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {toast.confidence}%
+          </div>
+        </div>
+      </div>
+
+      <div className={`text-[10px] ${isCall ? 'text-emerald-700' : 'text-rose-700'}`}>
+        {toast.firedAt.toLocaleTimeString()} · 0DTE opportunity
+      </div>
+
+      {/* Progress bar */}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-800">
+        <div
+          className={`h-full transition-none ${isCall ? 'bg-emerald-500' : 'bg-rose-500'}`}
+          style={{ width: `${progress}%` }}
+        />
       </div>
     </div>
   );
@@ -330,15 +435,49 @@ export default function MarketTracker() {
   const [timestamp, setTimestamp] = useState<string | null>(null);
   const [loading, setLoading]     = useState(true);
   const [countdown, setCountdown] = useState(REFRESH_MS / 1000);
+  const [toasts, setToasts]       = useState<AlertToast[]>([]);
+  const prevPrimeKeys             = useRef<Set<string>>(new Set());
+  const isFirstFetch              = useRef(true);
+  const toastCounter              = useRef(0);
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
       const json: TrackerResponse = await fetch('/api/tracker').then(r => r.json());
       setData(json.data);
       setTimestamp(json.timestamp);
+
+      const currentPrime = json.data.filter(d => d.allPass && d.signal !== 'NEUTRAL' && d.price !== null);
+
+      if (!isFirstFetch.current) {
+        const newFires = currentPrime.filter(d => !prevPrimeKeys.current.has(d.symbol));
+        if (newFires.length > 0) {
+          const signal = newFires[0].signal as 'CALL' | 'PUT';
+          playAlertBeep(signal);
+          const fresh: AlertToast[] = newFires.map(d => ({
+            id:         ++toastCounter.current,
+            symbol:     d.symbol,
+            name:       d.name,
+            signal:     d.signal as 'CALL' | 'PUT',
+            price:      d.price!,
+            confidence: d.confidence,
+            firedAt:    new Date(),
+          }));
+          setToasts(prev => [...fresh, ...prev].slice(0, 5));
+          fresh.forEach(t => {
+            setTimeout(() => dismissToast(t.id), TOAST_TTL);
+          });
+        }
+      }
+
+      prevPrimeKeys.current = new Set(currentPrime.map(d => d.symbol));
+      isFirstFetch.current  = false;
     } catch (err) { console.error('Tracker fetch error:', err); }
     finally { setLoading(false); setCountdown(REFRESH_MS / 1000); }
-  }, []);
+  }, [dismissToast]);
 
   useEffect(() => {
     fetchData();
@@ -362,6 +501,17 @@ export default function MarketTracker() {
 
   return (
     <div className="space-y-6">
+      {/* Toast stack — fixed top-right */}
+      {toasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+          {toasts.map(t => (
+            <div key={t.id} className="pointer-events-auto">
+              <AlertToastCard toast={t} onDismiss={() => dismissToast(t.id)} />
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Status bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-800/50 border border-slate-700/50 px-4 py-3">
         <div className="flex items-center gap-3">
