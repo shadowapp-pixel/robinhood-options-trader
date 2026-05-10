@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { UserButton, useUser, SignInButton } from '@clerk/nextjs';
+import Link from 'next/link';
 import MarketTracker from '@/components/MarketTrackerV2';
 
 type Tab = 'tracker' | 'search';
@@ -51,6 +53,9 @@ export default function Home() {
     }
   };
 
+  const { user, isLoaded } = useUser();
+  const isPro = user?.publicMetadata?.isPro === true;
+
   const changeNum = stockData ? parseFloat(stockData.change) : 0;
   const isUp = changeNum >= 0;
 
@@ -90,7 +95,32 @@ export default function Home() {
             ))}
           </nav>
 
-          <div className="text-[10px] text-[#4a4a4a] font-mono">0DTE · Robinhood</div>
+          {/* Auth controls */}
+          <div className="flex items-center gap-3">
+            {isLoaded && !user && (
+              <SignInButton mode="modal">
+                <button className="text-xs font-semibold text-[#9e9e9e] hover:text-white transition-colors">
+                  Sign in
+                </button>
+              </SignInButton>
+            )}
+            {isLoaded && user && !isPro && (
+              <Link
+                href="/pricing"
+                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#00C805]/15 text-[#00C805] border border-[#00C805]/30 hover:bg-[#00C805]/25 transition-colors"
+              >
+                Upgrade to Pro
+              </Link>
+            )}
+            {isLoaded && user && isPro && (
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#00C805]/15 text-[#00C805] border border-[#00C805]/30 tracking-widest">
+                PRO
+              </span>
+            )}
+            {isLoaded && user && (
+              <UserButton />
+            )}
+          </div>
         </div>
       </header>
 

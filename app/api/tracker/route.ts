@@ -1,25 +1,23 @@
+import { currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
 const WATCHLIST = [
-  { symbol: 'AAPL',  name: 'Apple',           type: 'mag7',  volTier: 'low'    },
-  { symbol: 'MSFT',  name: 'Microsoft',        type: 'mag7',  volTier: 'low'    },
-  { symbol: 'GOOGL', name: 'Alphabet',         type: 'mag7',  volTier: 'low'    },
-  { symbol: 'AMZN',  name: 'Amazon',           type: 'mag7',  volTier: 'medium' },
-  { symbol: 'META',  name: 'Meta',             type: 'mag7',  volTier: 'medium' },
-  { symbol: 'NVDA',  name: 'NVIDIA',           type: 'mag7',  volTier: 'high'   },
-  { symbol: 'TSLA',  name: 'Tesla',            type: 'mag7',  volTier: 'high'   },
-  { symbol: 'QQQ',   name: 'Nasdaq 100 ETF',   type: 'etf',   volTier: 'low'    },
-  { symbol: 'SPY',   name: 'S&P 500 ETF',      type: 'etf',   volTier: 'low'    },
-  { symbol: 'VXX',   name: 'VIX Futures ETF',  type: 'index', volTier: 'high'   },
+  { symbol: 'AAPL',  name: 'Apple',           type: 'mag7',  volTier: 'low',    pro: true  },
+  { symbol: 'MSFT',  name: 'Microsoft',        type: 'mag7',  volTier: 'low',    pro: true  },
+  { symbol: 'GOOGL', name: 'Alphabet',         type: 'mag7',  volTier: 'low',    pro: true  },
+  { symbol: 'AMZN',  name: 'Amazon',           type: 'mag7',  volTier: 'medium', pro: true  },
+  { symbol: 'META',  name: 'Meta',             type: 'mag7',  volTier: 'medium', pro: true  },
+  { symbol: 'NVDA',  name: 'NVIDIA',           type: 'mag7',  volTier: 'high',   pro: true  },
+  { symbol: 'TSLA',  name: 'Tesla',            type: 'mag7',  volTier: 'high',   pro: true  },
+  { symbol: 'QQQ',   name: 'Nasdaq 100 ETF',   type: 'etf',   volTier: 'low',    pro: false },
+  { symbol: 'SPY',   name: 'S&P 500 ETF',      type: 'etf',   volTier: 'low',    pro: false },
+  { symbol: 'VXX',   name: 'VIX Futures ETF',  type: 'index', volTier: 'high',   pro: true  },
 ];
 
-// Stock move needed for ATM 0DTE option to gain ~20%
-// 0DTE premiums are thinner — smaller moves produce larger % gains
-// Delta ≈ 0.5 for ATM, gamma is much higher intraday
 const VOL_MOVE: Record<string, number> = {
-  low:    0.003,  // 0.3% stock move → ~20% ATM 0DTE gain (SPY, QQQ, AAPL, MSFT, GOOGL)
-  medium: 0.005,  // 0.5%                                  (AMZN, META)
-  high:   0.008,  // 0.8%                                  (NVDA, TSLA, VXX)
+  low:    0.003,
+  medium: 0.005,
+  high:   0.008,
 };
 
 async function fetchQuote(symbol: string, apiKey: string) {
@@ -31,15 +29,11 @@ async function fetchQuote(symbol: string, apiKey: string) {
   return data as { c: number; h: number; l: number; o: number; pc: number; dp: number };
 }
 
-// Signal logic using quote fields as proxies:
-//   VWAP proxy     → (H + L + C) / 3
-//   Trend anchor   → today's open (replaces EMA8)
-//   Range position → (C - L) / (H - L) × 100 (replaces RSI3)
 function runSignal(c: number, h: number, l: number, o: number) {
-  const vwap = (h + l + c) / 3;
-  const ema8proxy = o;
-  const rangeSpan = h - l;
-  const rangePos = rangeSpan > 0 ? ((c - l) / rangeSpan) * 100 : 50;
+  const vwap         = (h + l + c) / 3;
+  const ema8proxy    = o;
+  const rangeSpan    = h - l;
+  const rangePos     = rangeSpan > 0 ? ((c - l) / rangeSpan) * 100 : 50;
   const distFromVWAP = Math.abs((c - vwap) / vwap) * 100;
 
   const bullishBias = c > vwap && c > ema8proxy;
@@ -65,52 +59,37 @@ function runSignal(c: number, h: number, l: number, o: number) {
     conditions.push({ label: 'No clear intraday bias', pass: false });
   }
 
-  const passCount = conditions.filter(c => c.pass).length;
-  const allPass = passCount === conditions.length;
+  const passCount  = conditions.filter(c => c.pass).length;
+  const allPass    = passCount === conditions.length;
   const confidence = Math.round((passCount / Math.max(conditions.length, 1)) * 100);
 
   return {
     signal: allPass ? direction : ('NEUTRAL' as const),
-    direction,
-    conditions,
-    allPass,
-    confidence,
+    direction, conditions, allPass, confidence,
     indicators: {
-      vwap: parseFloat(vwap.toFixed(4)),
+      vwap:      parseFloat(vwap.toFixed(4)),
       ema8proxy: parseFloat(ema8proxy.toFixed(4)),
-      rangePos: parseFloat(rangePos.toFixed(1)),
+      rangePos:  parseFloat(rangePos.toFixed(1)),
     },
   };
 }
 
-// Generate 1-day options suggestions targeting 20% premium gain.
-// Entry = current stock price (where to enter the position).
-// Exit  = stock price target at which the ATM option gains ~20%.
 function buildSuggestions(
-  symbol: string,
-  price: number,
-  changePercent: number,
-  direction: string,
-  signalConfidence: number,
-  volTier: string,
+  symbol: string, price: number, changePercent: number,
+  direction: string, signalConfidence: number, volTier: string,
 ) {
-  const move = VOL_MOVE[volTier] ?? VOL_MOVE.medium;
-
-  // Premium per share estimate for ATM 1DTE option
+  const move            = VOL_MOVE[volTier] ?? VOL_MOVE.medium;
   const premiumPerShare = parseFloat((price * move * 2).toFixed(2));
-  // Robinhood contract = 100 shares — this is what you actually pay
-  const contractCost   = parseFloat((premiumPerShare * 100).toFixed(2));
-  const contractTarget = parseFloat((contractCost * 1.2).toFixed(2));
-
-  const callEntry = parseFloat(price.toFixed(2));
-  const callExit  = parseFloat((price * (1 + move)).toFixed(2));
-  const putEntry  = parseFloat(price.toFixed(2));
-  const putExit   = parseFloat((price * (1 - move)).toFixed(2));
-
+  const contractCost    = parseFloat((premiumPerShare * 100).toFixed(2));
+  const contractTarget  = parseFloat((contractCost * 1.2).toFixed(2));
+  const callEntry       = parseFloat(price.toFixed(2));
+  const callExit        = parseFloat((price * (1 + move)).toFixed(2));
+  const putEntry        = parseFloat(price.toFixed(2));
+  const putExit         = parseFloat((price * (1 - move)).toFixed(2));
   const callConf = direction === 'CALL'
     ? Math.min(88, signalConfidence + Math.abs(changePercent) * 2)
     : Math.max(40, signalConfidence - 20);
-  const putConf  = direction === 'PUT'
+  const putConf = direction === 'PUT'
     ? Math.min(88, signalConfidence + Math.abs(changePercent) * 2)
     : Math.max(40, signalConfidence - 20);
 
@@ -121,14 +100,10 @@ function buildSuggestions(
       description: direction === 'CALL'
         ? `Uptrend confirmed. Stock needs to reach $${callExit} for ~20% premium gain.`
         : `Low-conviction reversal setup. Needs $${callExit} to capture 20% premium gain.`,
-      entryPrice: callEntry.toFixed(2),
-      exitPrice: callExit.toFixed(2),
-      premiumPerShare: premiumPerShare.toFixed(2),
-      contractCost: contractCost.toFixed(2),
-      contractTarget: contractTarget.toFixed(2),
-      strike: `~$${callEntry.toFixed(0)} ATM`,
-      timeframe: '0DTE (Today)',
-      confidence: parseFloat(callConf.toFixed(2)),
+      entryPrice: callEntry.toFixed(2), exitPrice: callExit.toFixed(2),
+      premiumPerShare: premiumPerShare.toFixed(2), contractCost: contractCost.toFixed(2),
+      contractTarget: contractTarget.toFixed(2), strike: `~$${callEntry.toFixed(0)} ATM`,
+      timeframe: '0DTE (Today)', confidence: parseFloat(callConf.toFixed(2)),
     },
     {
       type: 'PUT',
@@ -136,14 +111,10 @@ function buildSuggestions(
       description: direction === 'PUT'
         ? `Downtrend confirmed. Stock needs to reach $${putExit} for ~20% premium gain.`
         : `Low-conviction reversal setup. Needs $${putExit} to capture 20% premium gain.`,
-      entryPrice: putEntry.toFixed(2),
-      exitPrice: putExit.toFixed(2),
-      premiumPerShare: premiumPerShare.toFixed(2),
-      contractCost: contractCost.toFixed(2),
-      contractTarget: contractTarget.toFixed(2),
-      strike: `~$${putEntry.toFixed(0)} ATM`,
-      timeframe: '0DTE (Today)',
-      confidence: parseFloat(putConf.toFixed(2)),
+      entryPrice: putEntry.toFixed(2), exitPrice: putExit.toFixed(2),
+      premiumPerShare: premiumPerShare.toFixed(2), contractCost: contractCost.toFixed(2),
+      contractTarget: contractTarget.toFixed(2), strike: `~$${putEntry.toFixed(0)} ATM`,
+      timeframe: '0DTE (Today)', confidence: parseFloat(putConf.toFixed(2)),
     },
   ];
 }
@@ -154,57 +125,57 @@ export async function GET() {
     return NextResponse.json({ error: 'FINNHUB_API_KEY not configured' }, { status: 500 });
   }
 
-  const settled = await Promise.allSettled(
-    WATCHLIST.map(async ({ symbol, name, type, volTier }) => {
-      const q = await fetchQuote(symbol, apiKey);
-      const { signal, direction, conditions, allPass, confidence, indicators } = runSignal(q.c, q.h, q.l, q.o);
-      const suggestions = buildSuggestions(symbol, q.c, q.dp, direction, confidence, volTier);
+  // ── Subscription check ────────────────────────────────────────────────────
+  const user  = await currentUser();
+  const isPro = user?.publicMetadata?.isPro === true;
 
+  const active = WATCHLIST.filter(w => isPro || !w.pro);
+  const locked = WATCHLIST.filter(w => !isPro && w.pro);
+
+  // ── Fetch live quotes for active tickers ──────────────────────────────────
+  const settled = await Promise.allSettled(
+    active.map(async ({ symbol, name, type, volTier }) => {
+      const q = await fetchQuote(symbol, apiKey);
+      const sig = runSignal(q.c, q.h, q.l, q.o);
+      const suggestions = buildSuggestions(symbol, q.c, q.dp, sig.direction, sig.confidence, volTier);
       return {
-        symbol,
-        name,
-        type,
-        price: q.c,
-        dayOpen: q.o,
-        dayHigh: q.h,
-        dayLow: q.l,
-        prevClose: q.pc,
+        symbol, name, type, locked: false,
+        price: q.c, dayOpen: q.o, dayHigh: q.h, dayLow: q.l, prevClose: q.pc,
         changePercent: q.dp,
-        indicators,
-        signal,
-        direction,
-        conditions,
-        allPass,
-        confidence,
-        suggestions,
-        error: null,
+        indicators: sig.indicators, signal: sig.signal, direction: sig.direction,
+        conditions: sig.conditions, allPass: sig.allPass, confidence: sig.confidence,
+        suggestions, error: null,
       };
     })
   );
 
-  const data = WATCHLIST.map(({ symbol, name, type }, i) => {
+  const activeData = active.map(({ symbol, name, type }, i) => {
     const result = settled[i];
     if (result.status === 'fulfilled') return result.value;
     return {
-      symbol,
-      name,
-      type,
-      price: null,
-      dayOpen: null,
-      dayHigh: null,
-      dayLow: null,
-      prevClose: null,
-      changePercent: null,
-      indicators: null,
-      signal: 'NEUTRAL',
-      direction: 'NEUTRAL',
-      conditions: [],
-      allPass: false,
-      confidence: 0,
-      suggestions: [],
+      symbol, name, type, locked: false,
+      price: null, dayOpen: null, dayHigh: null, dayLow: null, prevClose: null,
+      changePercent: null, indicators: null,
+      signal: 'NEUTRAL', direction: 'NEUTRAL',
+      conditions: [], allPass: false, confidence: 0, suggestions: [],
       error: (result.reason as Error).message,
     };
   });
 
-  return NextResponse.json({ data, timestamp: new Date().toISOString() });
+  // ── Locked stubs (no price data) ──────────────────────────────────────────
+  const lockedData = locked.map(({ symbol, name, type }) => ({
+    symbol, name, type, locked: true,
+    price: null, dayOpen: null, dayHigh: null, dayLow: null, prevClose: null,
+    changePercent: null, indicators: null,
+    signal: 'NEUTRAL', direction: 'NEUTRAL',
+    conditions: [], allPass: false, confidence: 0, suggestions: [], error: null,
+  }));
+
+  // ── Restore original watchlist order ──────────────────────────────────────
+  const allData = WATCHLIST.map(w =>
+    activeData.find(d => d.symbol === w.symbol) ??
+    lockedData.find(d => d.symbol === w.symbol)!
+  );
+
+  return NextResponse.json({ data: allData, timestamp: new Date().toISOString(), isPro });
 }

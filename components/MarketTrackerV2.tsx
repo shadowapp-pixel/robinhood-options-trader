@@ -20,6 +20,7 @@ interface TrackerEntry {
   symbol: string;
   name: string;
   type: string;
+  locked?: boolean;
   price: number | null;
   dayOpen: number | null;
   dayHigh: number | null;
@@ -35,7 +36,7 @@ interface TrackerEntry {
   suggestions: Suggestion[];
   error: string | null;
 }
-interface TrackerResponse { data: TrackerEntry[]; timestamp: string; }
+interface TrackerResponse { data: TrackerEntry[]; timestamp: string; isPro: boolean; }
 
 interface AlertToast {
   id: number;
@@ -280,10 +281,54 @@ function AlertToastCard({ toast, onDismiss }: { toast: AlertToast; onDismiss: ()
   );
 }
 
+// ─── Locked card (free-tier placeholder) ─────────────────────────────────────
+
+function LockedCard({ entry }: { entry: TrackerEntry }) {
+  return (
+    <div className="relative rounded-xl border border-[#2a2a2a] bg-[#151515] overflow-hidden">
+      {/* Blurred skeleton */}
+      <div className="p-4 select-none pointer-events-none opacity-20 blur-[3px]">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-white font-bold text-base">{entry.symbol}</span>
+              <span className="text-[#6b6b6b] text-xs">{entry.name}</span>
+            </div>
+            <div className="h-1 w-40 bg-[#2a2a2a] rounded-full" />
+          </div>
+          <div className="text-right space-y-2">
+            <div className="h-6 w-20 bg-[#2a2a2a] rounded ml-auto" />
+            <div className="h-4 w-12 bg-[#2a2a2a] rounded ml-auto" />
+          </div>
+        </div>
+      </div>
+
+      {/* Lock overlay */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-[2px]">
+        <div className="text-center px-4">
+          <div className="w-8 h-8 rounded-full border border-[#2a2a2a] bg-[#1e1e1e] flex items-center justify-center mx-auto mb-2">
+            <span className="text-sm">🔒</span>
+          </div>
+          <p className="text-white text-sm font-bold mb-0.5">{entry.symbol}</p>
+          <p className="text-[#6b6b6b] text-xs mb-3">{entry.name} · Pro only</p>
+          <a
+            href="/pricing"
+            className="inline-block px-4 py-1.5 bg-[#00C805] text-black text-xs font-bold rounded-lg hover:bg-[#00a004] transition-colors"
+          >
+            Upgrade to Pro →
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Ticker card ──────────────────────────────────────────────────────────────
 
 function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number | null }) {
   const [expanded, setExpanded] = useState(false);
+
+  if (entry.locked) return <LockedCard entry={entry} />;
 
   if (entry.error || entry.price === null) {
     return (
