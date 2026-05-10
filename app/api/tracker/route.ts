@@ -1,5 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import { isProUser } from '@/lib/auth';
 
 const WATCHLIST = [
   { symbol: 'AAPL',  name: 'Apple',           type: 'mag7',  volTier: 'low',    pro: true  },
@@ -125,9 +126,9 @@ export async function GET() {
     return NextResponse.json({ error: 'FINNHUB_API_KEY not configured' }, { status: 500 });
   }
 
-  // ── Subscription check ────────────────────────────────────────────────────
+  // ── Subscription check (Stripe subscriber OR admin email) ────────────────
   const user  = await currentUser();
-  const isPro = user?.publicMetadata?.isPro === true;
+  const isPro = isProUser(user);
 
   const active = WATCHLIST.filter(w => isPro || !w.pro);
   const locked = WATCHLIST.filter(w => !isPro && w.pro);

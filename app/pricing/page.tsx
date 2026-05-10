@@ -33,8 +33,13 @@ function PricingContent() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
 
-  const isPro     = user?.publicMetadata?.isPro === true;
-  const isSuccess = searchParams.get('success') === 'true';
+  const adminEmails = new Set(
+    (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase())
+  );
+  const userEmail  = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase() ?? '';
+  const isAdmin    = adminEmails.has(userEmail);
+  const isPro      = isAdmin || user?.publicMetadata?.isPro === true;
+  const isSuccess  = searchParams.get('success') === 'true';
   const isCanceled = searchParams.get('canceled') === 'true';
 
   const handleUpgrade = async () => {
@@ -154,6 +159,10 @@ function PricingContent() {
 
             {!isLoaded ? (
               <div className="h-11 bg-[#1e1e1e] rounded-xl animate-pulse" />
+            ) : isAdmin ? (
+              <div className="w-full py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-400 text-sm font-bold text-center">
+                ✦ Admin Access — Complimentary
+              </div>
             ) : isPro ? (
               <button
                 onClick={handleManage}

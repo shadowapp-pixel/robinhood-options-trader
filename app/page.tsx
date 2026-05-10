@@ -54,7 +54,12 @@ export default function Home() {
   };
 
   const { user, isLoaded } = useUser();
-  const isPro = user?.publicMetadata?.isPro === true;
+  const adminEmails = new Set(
+    (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase())
+  );
+  const userEmail = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase() ?? '';
+  const isAdmin   = adminEmails.has(userEmail);
+  const isPro     = isAdmin || user?.publicMetadata?.isPro === true;
 
   const changeNum = stockData ? parseFloat(stockData.change) : 0;
   const isUp = changeNum >= 0;
@@ -112,7 +117,12 @@ export default function Home() {
                 Upgrade to Pro
               </Link>
             )}
-            {isLoaded && user && isPro && (
+            {isLoaded && user && isAdmin && (
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 tracking-widest">
+                ADMIN
+              </span>
+            )}
+            {isLoaded && user && isPro && !isAdmin && (
               <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#00C805]/15 text-[#00C805] border border-[#00C805]/30 tracking-widest">
                 PRO
               </span>
