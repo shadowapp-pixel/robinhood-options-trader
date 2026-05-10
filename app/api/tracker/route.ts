@@ -1,6 +1,9 @@
 import { currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { isProUser } from '@/lib/auth';
+import { redis } from '@/lib/redis';
+
+const CACHE_TTL = 28; // seconds — slightly under the 30s client refresh interval
 
 const WATCHLIST = [
   { symbol: 'AAPL',  name: 'Apple',           type: 'mag7',  volTier: 'low',    pro: true  },
@@ -21,13 +24,24 @@ const VOL_MOVE: Record<string, number> = {
   high:   0.008,
 };
 
-async function fetchQuote(symbol: string, apiKey: string) {
+type Quote = { c: number; h: number; l: number; o: number; pc: number; dp: number };
+
+async function fetchQuote(symbol: string, apiKey: string): Promise<Quote> {
+  const cacheKey = `quote:${symbol}`;
+
+  // Check Redis cache first — shared across all serverless instances & users
+  const cached = await redis.get<Quote>(cacheKey);
+  if (cached) return cached;
+
+  // Cache miss — call Finnhub and store result
   const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`;
-  const res = await fetch(url, { cache: 'no-store' });
+  const res  = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Finnhub HTTP ${res.status}`);
-  const data = await res.json();
+  const data = await res.json() as Quote;
   if (!data.c || data.c === 0) throw new Error('No quote data');
-  return data as { c: number; h: number; l: number; o: number; pc: number; dp: number };
+
+  await redis.set(cacheKey, data, { ex: CACHE_TTL });
+  return data;
 }
 
 function runSignal(c: number, h: number, l: number, o: number) {
