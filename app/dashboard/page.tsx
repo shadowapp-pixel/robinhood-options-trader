@@ -83,6 +83,25 @@ function saveToStorage(contracts: TrackedContract[]) {
   catch { /* ignore quota errors */ }
 }
 
+async function fetchFromServer(): Promise<TrackedContract[] | null> {
+  try {
+    const res = await fetch('/api/contracts');
+    if (!res.ok) return null;
+    const { contracts } = await res.json() as { contracts: TrackedContract[] };
+    return Array.isArray(contracts) ? contracts : null;
+  } catch { return null; }
+}
+
+async function saveToServer(contracts: TrackedContract[]) {
+  try {
+    await fetch('/api/contracts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contracts }),
+    });
+  } catch { /* ignore — localStorage is the fallback */ }
+}
+
 /* ─── TrackerRow ─────────────────────────────────────────────────────────── */
 
 function TrackerRow({
@@ -223,18 +242,34 @@ export default function Home() {
   /* ── Contract Tracker state ── */
   const [trackedContracts, setTrackedContracts] = useState<TrackedContract[]>([]);
   const [trackerReady,     setTrackerReady]     = useState(false);
-  const trackedRef = useRef<TrackedContract[]>([]);
+  const trackedRef  = useRef<TrackedContract[]>([]);
+  const saveTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstLoad = useRef(true);
   trackedRef.current = trackedContracts;
 
-  /* Load from localStorage once on mount */
+  /* Load on mount — try server first, fall back to localStorage */
   useEffect(() => {
-    setTrackedContracts(loadFromStorage());
-    setTrackerReady(true);
-  }, []);
+    if (!isPro) { setTrackerReady(true); return; }
+    (async () => {
+      const serverContracts = await fetchFromServer();
+      if (serverContracts && serverContracts.length > 0) {
+        setTrackedContracts(serverContracts);
+        saveToStorage(serverContracts);
+      } else {
+        setTrackedContracts(loadFromStorage());
+      }
+      setTrackerReady(true);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPro]);
 
-  /* Persist to localStorage whenever contracts change */
+  /* Persist whenever contracts change — localStorage immediately, server debounced */
   useEffect(() => {
-    if (trackerReady) saveToStorage(trackedContracts);
+    if (!trackerReady) return;
+    if (isFirstLoad.current) { isFirstLoad.current = false; return; }
+    saveToStorage(trackedContracts);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveToServer(trackedContracts), 1500);
   }, [trackedContracts, trackerReady]);
 
   /* ── Price polling for active contracts ── */
