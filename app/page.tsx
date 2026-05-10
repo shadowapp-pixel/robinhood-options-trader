@@ -117,12 +117,7 @@ export default function Home() {
                 Upgrade to Pro
               </Link>
             )}
-            {isLoaded && user && isAdmin && (
-              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 tracking-widest">
-                ADMIN
-              </span>
-            )}
-            {isLoaded && user && isPro && !isAdmin && (
+            {isLoaded && user && isPro && (
               <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#00C805]/15 text-[#00C805] border border-[#00C805]/30 tracking-widest">
                 PRO
               </span>
