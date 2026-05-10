@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Hood Options',
-  description: 'Live 0DTE trade suggestions for Robinhood option contracts',
+  description: 'Live 0DTE options signals and trade setups for active traders. Not affiliated with Robinhood Markets, Inc.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

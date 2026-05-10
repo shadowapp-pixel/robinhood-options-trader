@@ -1,6 +1,18 @@
+import { currentUser } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { isProUser } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
+  // ── Pro gate ──────────────────────────────────────────────────────────────
+  const user  = await currentUser();
+  const isPro = isProUser(user);
+  if (!isPro) {
+    return NextResponse.json(
+      { error: 'pro_required', message: 'Trade Search is a Pro feature. Upgrade to access custom ticker analysis.' },
+      { status: 403 }
+    );
+  }
+
   const searchParams = request.nextUrl.searchParams;
   const symbol = searchParams.get('symbol');
 

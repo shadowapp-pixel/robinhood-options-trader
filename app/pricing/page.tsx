@@ -16,7 +16,10 @@ const PRO_FEATURES = [
   'Everything in Free',
   'Full Mag7 watchlist (AAPL, MSFT, GOOGL, AMZN, META, NVDA, TSLA)',
   'VXX volatility tracker',
+  'Trade Search — analyze any ticker on demand',
+  'Virtual Contract Tracker — simulate +20% / −50% outcomes in real time',
   'Visual + audio alerts on prime signals',
+  'Access to the Learn center',
   'Priority support',
 ];
 
@@ -64,13 +67,13 @@ function PricingContent() {
       {/* Header */}
       <header className="border-b border-[#2a2a2a] bg-[#111111]/90 backdrop-blur sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
+          <Link href="/dashboard" className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-[#00C805] flex items-center justify-center shadow-[0_0_12px_rgba(0,200,5,0.4)]">
               <span className="text-xs font-black text-black">H</span>
             </div>
             <span className="text-base font-bold tracking-tight">Hood Options</span>
           </Link>
-          <Link href="/" className="text-[#9e9e9e] text-sm hover:text-white transition-colors">← Back to app</Link>
+          <Link href="/dashboard" className="text-[#9e9e9e] text-sm hover:text-white transition-colors">← Back to app</Link>
         </div>
       </header>
 
@@ -124,7 +127,7 @@ function PricingContent() {
 
             {!isLoaded || isPro ? null : (
               <Link
-                href="/"
+                href="/dashboard"
                 className="block text-center py-2.5 rounded-xl border border-[#2a2a2a] text-[#9e9e9e] text-sm font-semibold hover:border-[#3a3a3a] hover:text-white transition-colors"
               >
                 {user ? 'Current plan' : 'Get started free'}
@@ -188,11 +191,11 @@ function PricingContent() {
           <div className="inline-flex items-center gap-3 bg-[#151515] border border-[#2a2a2a] rounded-2xl px-6 py-4">
             <span className="text-2xl">🏦</span>
             <div className="text-left">
-              <p className="text-white text-sm font-semibold">Don&apos;t have a Robinhood account?</p>
+              <p className="text-white text-sm font-semibold">Don&apos;t have a brokerage account?</p>
               <p className="text-[#6b6b6b] text-xs">Get a free stock when you sign up and fund your account</p>
             </div>
             <a
-              href="https://robinhood.com/us/en/referral"
+              href="https://join.robinhood.com/jamesh4964"
               target="_blank"
               rel="noopener noreferrer"
               className="shrink-0 px-4 py-2 bg-[#1e1e1e] border border-[#2a2a2a] text-white text-xs font-semibold rounded-xl hover:border-[#00C805]/40 hover:text-[#00C805] transition-colors"
@@ -200,6 +203,9 @@ function PricingContent() {
               Open Account →
             </a>
           </div>
+          <p className="text-[#3a3a3a] text-[10px] mt-3">
+            Affiliate disclosure: We may receive compensation if you sign up through this link. Hood Options is not affiliated with Robinhood Markets, Inc.
+          </p>
         </div>
       </div>
     </main>

@@ -48,10 +48,10 @@ interface AlertToast {
   firedAt: Date;
 }
 
-// ─── Robinhood color tokens ───────────────────────────────────────────────────
-// RH_GREEN = #00C805  RH_RED = #EF4444
+// ─── Color tokens ─────────────────────────────────────────────────────────────
+// GREEN    = #00C805  RED     = #EF4444
 // BG       = #000000  SURFACE = #151515  SURFACE2 = #1e1e1e
-// BORDER   = #2a2a2a  TEXT2 = #9e9e9e   TEXT3 = #6b6b6b
+// BORDER   = #2a2a2a  TEXT2   = #9e9e9e  TEXT3    = #6b6b6b
 
 const REFRESH_MS = 30_000;
 const TOAST_TTL  = 12_000;
@@ -187,7 +187,7 @@ function SuggestionCard({ s, isPrimary }: { s: Suggestion; isPrimary: boolean })
           { label: 'Strike',        value: s.strike,               color: 'text-[#60a5fa]'   },
           { label: 'Prem / Share',  value: `$${s.premiumPerShare}`,color: 'text-white'       },
           { label: 'Contract Cost', value: `$${s.contractCost}`,   color: 'text-white'       },
-          { label: '+20% Target',   value: `$${s.contractTarget}`, color: 'text-amber-400'   },
+          { label: 'Exit Scenario', value: `$${s.contractTarget}`, color: 'text-amber-400'   },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-[#111111] rounded-lg p-2 border border-[#2a2a2a]">
             <div className="text-[#6b6b6b] mb-1" style={{ fontSize: '10px' }}>{label}</div>
@@ -458,7 +458,7 @@ function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number
             {entry.suggestions.length > 0 && (
               <div>
                 <div className="text-[#6b6b6b] text-xs font-semibold tracking-widest uppercase mb-2">
-                  0DTE Options — +20% Premium Target
+                  0DTE Options — Illustrative Exit Scenarios
                 </div>
                 <div className="space-y-2">
                   {entry.suggestions.map((s, i) => (
