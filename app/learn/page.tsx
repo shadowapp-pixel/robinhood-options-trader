@@ -239,6 +239,238 @@ export default function LearnPage() {
         </section>
 
         {/* ════════════════════════════════════════════════ */}
+        {/* SECTION 2B — Signal Confidence Explained         */}
+        {/* ════════════════════════════════════════════════ */}
+        <section>
+          <SectionLabel text="Section 2B" />
+          <h2 className="text-2xl font-black mb-2">How Signal Confidence Is Calculated</h2>
+          <p className="text-[#9e9e9e] text-sm mb-8">
+            The confidence percentage is not a guess — it is a precise score derived from four technical conditions evaluated in real time. Here is exactly how it works.
+          </p>
+
+          {/* Formula card */}
+          <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl p-6 mb-4">
+            <h3 className="text-base font-bold mb-1">The Formula</h3>
+            <p className="text-[#9e9e9e] text-sm mb-5 leading-relaxed">
+              Every signal checks up to four conditions. Each one either <span className="text-[#00C805] font-semibold">passes</span> or <span className="text-[#EF4444] font-semibold">fails</span>. The confidence score is simply the fraction of conditions that pass, expressed as a percentage.
+            </p>
+            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-5 text-center mb-5">
+              <p className="text-[#6b6b6b] text-xs uppercase tracking-widest font-semibold mb-2">Confidence Formula</p>
+              <p className="text-white font-mono text-lg font-bold">
+                Confidence = (Conditions Passed ÷ Total Conditions) × 100
+              </p>
+              <p className="text-[#6b6b6b] text-xs mt-2 font-mono">Example: 3 out of 4 pass → 75% confidence</p>
+            </div>
+
+            {/* Possible outcomes */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { score: '100%', label: '4 / 4 pass', badge: 'PRIME SIGNAL', badgeColor: 'text-[#00C805]', bg: 'bg-[#00C805]/8 border-[#00C805]/25', note: 'All conditions met. Signal fires as CALL or PUT.' },
+                { score: '75%',  label: '3 / 4 pass', badge: 'STRONG',       badgeColor: 'text-[#00C805]', bg: 'bg-[#00C805]/5 border-[#2a2a2a]',   note: 'Worth watching. Signal shows NEUTRAL but bias is clear.' },
+                { score: '50%',  label: '2 / 4 pass', badge: 'BORDERLINE',   badgeColor: 'text-amber-400', bg: 'bg-amber-500/5 border-[#2a2a2a]',   note: 'Directional bias exists but confirmation is weak. Use caution.' },
+                { score: '0%',   label: 'No bias',    badge: 'NEUTRAL',       badgeColor: 'text-[#6b6b6b]', bg: 'bg-[#1e1e1e] border-[#2a2a2a]',    note: 'Price is not clearly above or below VWAP and open. No trade.' },
+              ].map(({ score, label, badge, badgeColor, bg, note }) => (
+                <div key={score} className={`rounded-xl border p-3 ${bg}`}>
+                  <p className={`text-2xl font-black font-mono mb-0.5 ${badgeColor}`}>{score}</p>
+                  <p className="text-[10px] text-[#6b6b6b] font-mono mb-1">{label}</p>
+                  <p className={`text-[10px] font-bold tracking-widest uppercase mb-2 ${badgeColor}`}>{badge}</p>
+                  <p className="text-[10px] text-[#4a4a4a] leading-relaxed">{note}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* The four conditions */}
+          <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl p-6 mb-4">
+            <h3 className="text-base font-bold mb-1">The Four Conditions</h3>
+            <p className="text-[#9e9e9e] text-sm mb-5 leading-relaxed">
+              A separate set of four conditions is evaluated for each potential CALL and PUT direction. Conditions 1 and 2 determine direction; conditions 3 and 4 filter for quality entry timing.
+            </p>
+
+            {/* CALL conditions */}
+            <div className="mb-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Tag color="green">CALL Conditions</Tag>
+                <span className="text-[10px] text-[#6b6b6b]">checked when price is above VWAP and above today&apos;s open</span>
+              </div>
+              <div className="rounded-xl border border-[#2a2a2a] divide-y divide-[#2a2a2a] overflow-hidden">
+                {[
+                  {
+                    num: 1,
+                    label: 'Price above VWAP',
+                    always: true,
+                    detail: 'VWAP (Volume-Weighted Average Price) is calculated as (High + Low + Close) ÷ 3. Price above VWAP means buyers are in control for the day. This condition always passes when a bullish bias is detected.',
+                    code: 'c > vwap',
+                  },
+                  {
+                    num: 2,
+                    label: 'Price above today\'s open (intraday uptrend)',
+                    always: true,
+                    detail: 'The opening price is used as a proxy for the 8-period EMA trend. Price holding above the open signals that the intraday uptrend is intact. This condition always passes for a CALL signal.',
+                    code: 'c > open',
+                  },
+                  {
+                    num: 3,
+                    label: 'Range position < 30% (intraday pullback)',
+                    always: false,
+                    detail: 'Range Position = (Current Price − Day Low) ÷ (Day High − Day Low) × 100. Below 30% means the stock has pulled back toward its daily low while remaining in an uptrend — a better entry point with more upside room.',
+                    code: 'rangePos < 30',
+                  },
+                  {
+                    num: 4,
+                    label: 'Within 1.5% of VWAP',
+                    always: false,
+                    detail: 'The percentage distance between current price and VWAP. The closer the price is to VWAP, the lower the risk of buying at an extended level. Entries far from VWAP (>1.5%) have a higher chance of mean-reverting against you.',
+                    code: 'abs((c − vwap) ÷ vwap) × 100 < 1.5',
+                  },
+                ].map(({ num, label, always, detail, code }) => (
+                  <div key={num} className="flex gap-4 px-4 py-3.5">
+                    <div className="shrink-0 flex flex-col items-center gap-1 pt-0.5">
+                      <div className="w-5 h-5 rounded-full bg-[#2a2a2a] flex items-center justify-center">
+                        <span className="text-[10px] font-black text-[#9e9e9e]">{num}</span>
+                      </div>
+                      {always && (
+                        <span className="text-[8px] font-bold text-[#00C805] tracking-widest">AUTO</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-sm font-semibold text-white">{label}</span>
+                        {always
+                          ? <span className="text-[10px] font-bold text-[#00C805] bg-[#00C805]/10 px-1.5 py-0.5 rounded border border-[#00C805]/25">Always passes</span>
+                          : <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/25">Conditional</span>
+                        }
+                      </div>
+                      <p className="text-xs text-[#6b6b6b] leading-relaxed mb-1.5">{detail}</p>
+                      <p className="text-[10px] font-mono text-[#4a4a4a] bg-[#1e1e1e] px-2 py-1 rounded border border-[#2a2a2a] inline-block">{code}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* PUT conditions */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Tag color="red">PUT Conditions</Tag>
+                <span className="text-[10px] text-[#6b6b6b]">mirror image — checked when price is below VWAP and below today&apos;s open</span>
+              </div>
+              <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-4">
+                <p className="text-sm text-[#9e9e9e] leading-relaxed mb-3">
+                  The PUT evaluation uses the exact same four conditions with inverted logic:
+                </p>
+                <div className="space-y-2">
+                  {[
+                    { n: 1, text: 'Price below VWAP', auto: true },
+                    { n: 2, text: 'Price below today\'s open (intraday downtrend)', auto: true },
+                    { n: 3, text: 'Range position > 70% — price extended toward the high, ready to reverse', auto: false },
+                    { n: 4, text: 'Within 1.5% of VWAP — same proximity rule applies', auto: false },
+                  ].map(({ n, text, auto }) => (
+                    <div key={n} className="flex items-start gap-2.5">
+                      <span className="text-[#EF4444] font-bold text-xs w-4 shrink-0 mt-0.5">{n}.</span>
+                      <span className="text-xs text-[#c4c4c4] leading-relaxed flex-1">{text}</span>
+                      {auto && <span className="text-[8px] font-bold text-[#EF4444] tracking-widest shrink-0 mt-0.5">AUTO</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Live worked example */}
+          <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl p-6 mb-4">
+            <h3 className="text-base font-bold mb-1">Worked Example — 75% CALL Signal</h3>
+            <p className="text-[#9e9e9e] text-sm mb-5 leading-relaxed">
+              Here is how the engine scores a real-world scenario with AAPL trading at $294.80 intraday.
+            </p>
+            <div className="grid sm:grid-cols-3 gap-3 mb-5">
+              {[
+                { label: 'Current Price', value: '$294.80', color: 'text-white' },
+                { label: 'Day Open',      value: '$292.56', color: 'text-white' },
+                { label: 'VWAP',          value: '$294.21', color: 'text-[#60a5fa]' },
+                { label: 'Day High',      value: '$295.27', color: 'text-[#00C805]' },
+                { label: 'Day Low',       value: '$292.56', color: 'text-[#EF4444]' },
+                { label: 'Range Pos',     value: '82.7%',   color: 'text-[#EF4444]' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl px-4 py-3">
+                  <p className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold mb-1">{label}</p>
+                  <p className={`text-base font-bold font-mono ${color}`}>{value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-xl border border-[#2a2a2a] divide-y divide-[#2a2a2a] overflow-hidden mb-4">
+              {[
+                { label: 'Price above VWAP',                         pass: true,  reason: '$294.80 > $294.21 ✓' },
+                { label: 'Price above open (intraday uptrend)',       pass: true,  reason: '$294.80 > $292.56 ✓' },
+                { label: 'Range position < 30 — intraday pullback',  pass: false, reason: '82.7% is not < 30 ✗ — price is near the high' },
+                { label: 'Within 1.5% of VWAP',                      pass: true,  reason: '|(294.80 − 294.21) ÷ 294.21| × 100 = 0.20% < 1.5 ✓' },
+              ].map(({ label, pass, reason }) => (
+                <div key={label} className="flex items-center gap-3 px-4 py-2.5">
+                  <span className={`text-xs font-bold w-4 shrink-0 ${pass ? 'text-[#00C805]' : 'text-[#EF4444]'}`}>
+                    {pass ? '✓' : '✗'}
+                  </span>
+                  <span className={`text-xs flex-1 ${pass ? 'text-[#c4c4c4]' : 'text-[#4a4a4a]'}`}>{label}</span>
+                  <span className={`text-[10px] font-mono shrink-0 ${pass ? 'text-[#00C805]' : 'text-[#EF4444]'}`}>{reason}</span>
+                </div>
+              ))}
+            </div>
+            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl px-5 py-4 flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <p className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold mb-1">Result</p>
+                <p className="text-sm text-[#c4c4c4]">3 of 4 conditions passed → signal shows <span className="text-white font-semibold">NEUTRAL</span> (not all pass), but the underlying direction is <span className="text-[#00C805] font-semibold">CALL</span> with <span className="text-[#00C805] font-semibold">75% confidence</span>.</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-3xl font-black text-[#00C805] font-mono">75%</p>
+                <p className="text-[10px] text-[#6b6b6b]">3 ÷ 4 × 100</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Trading guidance */}
+          <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl p-6">
+            <h3 className="text-base font-bold mb-4">How to Use Confidence in Your Trading</h3>
+            <div className="space-y-3">
+              {[
+                {
+                  score: '100%',
+                  tag: 'PRIME SIGNAL',
+                  tagColor: 'green' as const,
+                  text: 'All four conditions pass. The signal fires as CALL or PUT and triggers the prime ribbon on the card plus an audio alert. This is the highest-quality setup Hood Option can produce — the one worth acting on.',
+                },
+                {
+                  score: '75%',
+                  tag: 'WORTH WATCHING',
+                  tagColor: 'green' as const,
+                  text: 'Three conditions pass. The signal shows NEUTRAL (because not all four pass) but the direction and score are visible in the card. Many experienced traders wait for 100% and skip 75% setups, but 75% with a strong day\'s trend can still be a solid trade.',
+                },
+                {
+                  score: '50%',
+                  tag: 'USE CAUTION',
+                  tagColor: 'amber' as const,
+                  text: 'Only the two direction-defining conditions pass. The market has a directional lean but lacks confirmation from the timing filters. Avoid trading on 50% signals alone — wait for a higher score or additional confirmation.',
+                },
+                {
+                  score: '0%',
+                  tag: 'NO TRADE',
+                  tagColor: 'red' as const,
+                  text: 'Price is caught between VWAP and the open — neither clearly bullish nor bearish. The signal shows NEUTRAL with 0% confidence. Sit on your hands and wait for a clearer setup.',
+                },
+              ].map(({ score, tag, tagColor, text }) => (
+                <div key={score} className="flex gap-4 pb-3 border-b border-[#1e1e1e] last:border-0 last:pb-0">
+                  <div className="shrink-0 w-12 text-right pt-0.5">
+                    <span className="text-base font-black font-mono text-white">{score}</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="mb-1"><Tag color={tagColor}>{tag}</Tag></div>
+                    <p className="text-xs text-[#9e9e9e] leading-relaxed">{text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ════════════════════════════════════════════════ */}
         {/* SECTION 3 — Step-by-Step Trade Guide             */}
         {/* ════════════════════════════════════════════════ */}
         <section>
