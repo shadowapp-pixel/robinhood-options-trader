@@ -14,6 +14,7 @@ const PRO_FEATURES = [
   'VXX volatility tracker',
   'Trade Search — analyze any ticker on demand',
   'Virtual Contract Tracker — simulate +20% / −50% outcomes in real time',
+  'Favorites Watchlist — save up to 20 stocks with live signals & charts',
   'Visual + audio alerts on prime signals',
   'Access to the Learn center',
   'Priority support',
@@ -202,6 +203,34 @@ export default function HomePage() {
                 className="block text-center py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 text-sm font-bold hover:bg-purple-500/20 transition-colors"
               >
                 Unlock Contract Tracker →
+              </Link>
+            </div>
+
+            {/* Favorites Watchlist */}
+            <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl p-8 flex flex-col">
+              <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-5">
+                <span className="text-xl">★</span>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-xl font-bold">Favorites Watchlist</h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#00C805]/15 text-[#00C805] border border-[#00C805]/30 tracking-widest">PRO</span>
+              </div>
+              <p className="text-[#9e9e9e] text-sm mb-6 leading-relaxed">
+                Star any stock from Trade Search and add it to your personal watchlist. Get live signals, intraday charts, and 0DTE setups for up to 20 of your own picks — updated every 30 seconds, just like Market Tracker.
+              </p>
+              <ul className="space-y-2.5 mb-8 flex-1">
+                {['Save up to 20 stocks to your watchlist', 'Live CALL / PUT signals per favorite', 'Interactive 1H / 4H / 1D charts', 'Synced across devices via your account'].map(f => (
+                  <li key={f} className="flex items-start gap-2.5 text-sm text-[#c4c4c4]">
+                    <CheckIcon green />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/pricing"
+                className="block text-center py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm font-bold hover:bg-amber-500/20 transition-colors"
+              >
+                Unlock Favorites →
               </Link>
             </div>
 

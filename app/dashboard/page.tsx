@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserButton, useUser, SignInButton } from '@clerk/nextjs';
 import Link from 'next/link';
-import MarketTracker from '@/components/MarketTrackerV2';
-import StockChart    from '@/components/StockChart';
-import ThemeToggle   from '@/components/ThemeToggle';
+import MarketTracker      from '@/components/MarketTrackerV2';
+import StockChart         from '@/components/StockChart';
+import ThemeToggle        from '@/components/ThemeToggle';
+import FavoritesTracker   from '@/components/FavoritesTracker';
 
-type Tab = 'tracker' | 'search';
+type Tab = 'tracker' | 'search' | 'favorites';
 
 /* ─── Trade Search types ─────────────────────────────────────────────────── */
 
@@ -72,6 +73,40 @@ function timeAgo(ms: number): string {
 }
 
 const STORAGE_KEY = 'hood_tracked_contracts_v1';
+const FAV_KEY     = 'hood_favorites_v1';
+
+/* ── Favorites helpers ────────────────────────────────────────────────────── */
+
+function loadFavoritesFromStorage(): string[] {
+  try {
+    const raw = localStorage.getItem(FAV_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch { return []; }
+}
+
+function saveFavoritesToStorage(symbols: string[]) {
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(symbols)); }
+  catch { /* ignore quota errors */ }
+}
+
+async function fetchFavoritesFromServer(): Promise<string[] | null> {
+  try {
+    const res = await fetch('/api/favorites');
+    if (!res.ok) return null;
+    const { symbols } = await res.json() as { symbols: string[] };
+    return Array.isArray(symbols) ? symbols : null;
+  } catch { return null; }
+}
+
+async function saveFavoritesToServer(symbols: string[]) {
+  try {
+    await fetch('/api/favorites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbols }),
+    });
+  } catch { /* localStorage is the fallback */ }
+}
 
 function loadFromStorage(): TrackedContract[] {
   try {
@@ -250,6 +285,12 @@ export default function Home() {
   const isFirstLoad = useRef(true);
   trackedRef.current = trackedContracts;
 
+  /* ── Favorites state ── */
+  const [favorites,       setFavorites]       = useState<string[]>([]);
+  const [favReady,        setFavReady]        = useState(false);
+  const favSaveTimer      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFavFirstLoad    = useRef(true);
+
   /* Load on mount — try server first, fall back to localStorage */
   useEffect(() => {
     if (!isPro) { setTrackerReady(true); return; }
@@ -274,6 +315,31 @@ export default function Home() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => saveToServer(trackedContracts), 1500);
   }, [trackedContracts, trackerReady]);
+
+  /* Load favorites on mount */
+  useEffect(() => {
+    if (!isPro) { setFavReady(true); return; }
+    (async () => {
+      const serverFavs = await fetchFavoritesFromServer();
+      if (serverFavs && serverFavs.length > 0) {
+        setFavorites(serverFavs);
+        saveFavoritesToStorage(serverFavs);
+      } else {
+        setFavorites(loadFavoritesFromStorage());
+      }
+      setFavReady(true);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPro]);
+
+  /* Persist favorites whenever they change */
+  useEffect(() => {
+    if (!favReady) return;
+    if (isFavFirstLoad.current) { isFavFirstLoad.current = false; return; }
+    saveFavoritesToStorage(favorites);
+    if (favSaveTimer.current) clearTimeout(favSaveTimer.current);
+    favSaveTimer.current = setTimeout(() => saveFavoritesToServer(favorites), 1500);
+  }, [favorites, favReady]);
 
   /* ── Price polling for active contracts ── */
   const activeSymbolsKey = trackedContracts
@@ -366,6 +432,19 @@ export default function Home() {
     setTrackedContracts(prev => prev.filter(c => c.id !== id));
   }, []);
 
+  /* ── Add / Remove favorites ── */
+  const addFavorite = useCallback((sym: string) => {
+    setFavorites(prev => {
+      if (prev.includes(sym)) return prev;
+      if (prev.length >= 20) return prev;
+      return [...prev, sym];
+    });
+  }, []);
+
+  const removeFavorite = useCallback((sym: string) => {
+    setFavorites(prev => prev.filter(s => s !== sym));
+  }, []);
+
   /* ── Trade Search handler ── */
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -413,17 +492,17 @@ export default function Home() {
 
           {/* Tab switcher */}
           <nav className="flex gap-1 bg-[#1e1e1e] border border-[#2a2a2a] p-1 rounded-xl">
-            {(['tracker', 'search'] as Tab[]).map(tab => (
+            {(['tracker', 'search', 'favorites'] as Tab[]).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   activeTab === tab
                     ? 'bg-[#00C805] text-black shadow'
                     : 'text-[#9e9e9e] hover:text-white'
                 }`}
               >
-                {tab === 'tracker' ? 'Market Tracker' : 'Trade Search'}
+                {tab === 'tracker' ? 'Market Tracker' : tab === 'search' ? 'Trade Search' : '★ Favorites'}
               </button>
             ))}
           </nav>
@@ -466,6 +545,38 @@ export default function Home() {
 
         {/* ── Market Tracker tab ── */}
         {activeTab === 'tracker' && <MarketTracker />}
+
+        {/* ── Favorites tab — paywall ── */}
+        {activeTab === 'favorites' && !isPro && (
+          <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl px-6 py-16 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-[#1e1e1e] border border-[#2a2a2a] flex items-center justify-center mx-auto mb-5">
+              <span className="text-2xl">★</span>
+            </div>
+            <p className="text-white font-bold text-lg mb-2">Favorites is a Pro feature</p>
+            <p className="text-[#6b6b6b] text-sm max-w-sm mx-auto mb-6">
+              Save any stock to your personal watchlist and get live signals, charts, and trade setups — unlocked with Hood Option Pro.
+            </p>
+            {isLoaded && !user ? (
+              <SignInButton mode="modal">
+                <button className="px-6 py-2.5 bg-[#00C805] hover:bg-[#00a004] text-black text-sm font-bold rounded-xl transition-colors shadow-[0_0_20px_rgba(0,200,5,0.25)]">
+                  Sign in to upgrade
+                </button>
+              </SignInButton>
+            ) : (
+              <a
+                href="/pricing"
+                className="inline-block px-6 py-2.5 bg-[#00C805] hover:bg-[#00a004] text-black text-sm font-bold rounded-xl transition-colors shadow-[0_0_20px_rgba(0,200,5,0.25)]"
+              >
+                Upgrade to Pro →
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* ── Favorites tab — Pro ── */}
+        {activeTab === 'favorites' && isPro && favReady && (
+          <FavoritesTracker symbols={favorites} onRemove={removeFavorite} />
+        )}
 
         {/* ── Trade Search tab — paywall ── */}
         {activeTab === 'search' && !isPro && (
@@ -543,12 +654,29 @@ export default function Home() {
                       <span className="text-xs text-[#6b6b6b]">Today</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3 flex-wrap justify-end">
                     <div className="text-right">
                       <p className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold">Timeframe</p>
                       <p className="text-sm font-bold text-amber-400 mt-0.5">0DTE</p>
                       <p className="text-[10px] text-[#6b6b6b] mt-0.5">Same-day expiry</p>
                     </div>
+                    {/* Add to Favorites button */}
+                    {(() => {
+                      const isFav = favorites.includes(stockData.symbol);
+                      return (
+                        <button
+                          onClick={() => isFav ? removeFavorite(stockData.symbol) : addFavorite(stockData.symbol)}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                            isFav
+                              ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                              : 'bg-[#1e1e1e] border-[#2a2a2a] text-[#9e9e9e] hover:text-amber-400 hover:border-amber-500/30'
+                          }`}
+                        >
+                          <span>{isFav ? '★' : '☆'}</span>
+                          {isFav ? 'Favorited' : 'Add to Favorites'}
+                        </button>
+                      );
+                    })()}
                     <button
                       onClick={() => setShowChart(v => !v)}
                       className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${

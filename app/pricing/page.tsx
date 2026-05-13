@@ -19,6 +19,7 @@ const PRO_FEATURES = [
   'VXX volatility tracker',
   'Trade Search — analyze any ticker on demand',
   'Virtual Contract Tracker — simulate +20% / −50% outcomes in real time',
+  'Favorites Watchlist — save up to 20 stocks with live signals & charts',
   'Visual + audio alerts on prime signals',
   'Access to the Learn center',
   'Priority support',
