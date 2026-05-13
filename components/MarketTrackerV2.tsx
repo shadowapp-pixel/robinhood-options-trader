@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import StockChart from '@/components/StockChart';
 
 interface Condition  { label: string; pass: boolean; }
 interface Suggestion {
@@ -325,8 +326,9 @@ function LockedCard({ entry }: { entry: TrackerEntry }) {
 
 // ─── Ticker card ──────────────────────────────────────────────────────────────
 
-function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number | null }) {
-  const [expanded, setExpanded] = useState(false);
+function TickerCard({ entry, vixLevel, isPro }: { entry: TrackerEntry; vixLevel: number | null; isPro: boolean }) {
+  const [expanded,  setExpanded]  = useState(false);
+  const [showChart, setShowChart] = useState(false);
 
   if (entry.locked) return <LockedCard entry={entry} />;
 
@@ -408,6 +410,25 @@ function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number
         {/* Expanded */}
         {expanded && entry.indicators && (
           <div className="mt-4 pt-4 border-t border-[#2a2a2a] space-y-5">
+            {/* Chart toggle — Pro only */}
+            {isPro && (
+              <button
+                onClick={() => setShowChart(v => !v)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                  showChart
+                    ? 'bg-[#00C805]/15 border-[#00C805]/30 text-[#00C805]'
+                    : 'bg-[#1e1e1e] border-[#2a2a2a] text-[#9e9e9e] hover:text-white'
+                }`}
+              >
+                <span>📈</span>
+                {showChart ? 'Hide Chart' : 'Show Chart'}
+              </button>
+            )}
+
+            {/* Chart */}
+            {isPro && showChart && (
+              <StockChart symbol={entry.symbol} />
+            )}
             {/* Key levels */}
             <div>
               <div className="text-[#6b6b6b] text-xs font-semibold tracking-widest uppercase mb-2">Key Levels</div>
@@ -490,6 +511,7 @@ export default function MarketTracker() {
   const [loading, setLoading]     = useState(true);
   const [countdown, setCountdown] = useState(REFRESH_MS / 1000);
   const [toasts, setToasts]       = useState<AlertToast[]>([]);
+  const [isPro, setIsPro]         = useState(false);
   const prevPrimeKeys             = useRef<Set<string>>(new Set());
   const isFirstFetch              = useRef(true);
   const toastCounter              = useRef(0);
@@ -503,6 +525,7 @@ export default function MarketTracker() {
       const json: TrackerResponse = await fetch('/api/tracker').then(r => r.json());
       setData(json.data);
       setTimestamp(json.timestamp);
+      setIsPro(json.isPro);
 
       const currentPrime = json.data.filter(d => d.allPass && d.signal !== 'NEUTRAL' && d.price !== null);
 
@@ -626,7 +649,7 @@ export default function MarketTracker() {
           <div className="flex-1 h-px bg-[#2a2a2a]" />
         </div>
         <div className="space-y-2">
-          {mag7.map(e => <TickerCard key={e.symbol} entry={e} vixLevel={vixLevel} />)}
+          {mag7.map(e => <TickerCard key={e.symbol} entry={e} vixLevel={vixLevel} isPro={isPro} />)}
         </div>
       </section>
 
@@ -637,7 +660,7 @@ export default function MarketTracker() {
           <div className="flex-1 h-px bg-[#2a2a2a]" />
         </div>
         <div className="space-y-2">
-          {etfs.map(e => <TickerCard key={e.symbol} entry={e} vixLevel={vixLevel} />)}
+          {etfs.map(e => <TickerCard key={e.symbol} entry={e} vixLevel={vixLevel} isPro={isPro} />)}
         </div>
       </section>
 
@@ -648,7 +671,7 @@ export default function MarketTracker() {
           <div className="flex-1 h-px bg-[#2a2a2a]" />
         </div>
         <div className="space-y-2">
-          {indices.map(e => <TickerCard key={e.symbol} entry={e} vixLevel={vixLevel} />)}
+          {indices.map(e => <TickerCard key={e.symbol} entry={e} vixLevel={vixLevel} isPro={isPro} />)}
         </div>
       </section>
     </div>

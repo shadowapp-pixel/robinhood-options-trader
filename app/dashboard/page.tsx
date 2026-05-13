@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserButton, useUser, SignInButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import MarketTracker from '@/components/MarketTrackerV2';
+import StockChart    from '@/components/StockChart';
 
 type Tab = 'tracker' | 'search';
 
@@ -238,6 +239,7 @@ export default function Home() {
   const [loading,   setLoading]   = useState(false);
   const [stockData, setStockData] = useState<StockData | null>(null);
   const [error,     setError]     = useState<string | null>(null);
+  const [showChart, setShowChart] = useState(false);
 
   /* ── Contract Tracker state ── */
   const [trackedContracts, setTrackedContracts] = useState<TrackedContract[]>([]);
@@ -525,24 +527,46 @@ export default function Home() {
 
             {/* Quote banner */}
             {stockData && (
-              <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl px-6 py-5 flex items-center justify-between">
-                <div>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-3xl font-black font-mono tracking-tight text-white">{stockData.symbol}</span>
-                    <span className="text-2xl font-bold font-mono text-white">${stockData.currentPrice}</span>
+              <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl overflow-hidden">
+                <div className="px-6 py-5 flex items-center justify-between">
+                  <div>
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-3xl font-black font-mono tracking-tight text-white">{stockData.symbol}</span>
+                      <span className="text-2xl font-bold font-mono text-white">${stockData.currentPrice}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-sm font-semibold px-2 py-0.5 rounded-md ${isUp ? 'bg-[#00C805]/15 text-[#00C805]' : 'bg-[#EF4444]/15 text-[#EF4444]'}`}>
+                        {isUp ? '+' : ''}{stockData.change} ({isUp ? '+' : ''}{stockData.changePercent}%)
+                      </span>
+                      <span className="text-xs text-[#6b6b6b]">Today</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-sm font-semibold px-2 py-0.5 rounded-md ${isUp ? 'bg-[#00C805]/15 text-[#00C805]' : 'bg-[#EF4444]/15 text-[#EF4444]'}`}>
-                      {isUp ? '+' : ''}{stockData.change} ({isUp ? '+' : ''}{stockData.changePercent}%)
-                    </span>
-                    <span className="text-xs text-[#6b6b6b]">Today</span>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold">Timeframe</p>
+                      <p className="text-sm font-bold text-amber-400 mt-0.5">0DTE</p>
+                      <p className="text-[10px] text-[#6b6b6b] mt-0.5">Same-day expiry</p>
+                    </div>
+                    <button
+                      onClick={() => setShowChart(v => !v)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                        showChart
+                          ? 'bg-[#00C805]/15 border-[#00C805]/30 text-[#00C805]'
+                          : 'bg-[#1e1e1e] border-[#2a2a2a] text-[#9e9e9e] hover:text-white'
+                      }`}
+                    >
+                      <span>📈</span>
+                      {showChart ? 'Hide Chart' : 'Show Chart'}
+                    </button>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold">Timeframe</p>
-                  <p className="text-sm font-bold text-amber-400 mt-0.5">0DTE</p>
-                  <p className="text-[10px] text-[#6b6b6b] mt-0.5">Same-day expiry</p>
-                </div>
+
+                {/* Chart */}
+                {showChart && (
+                  <div className="px-6 pb-6 border-t border-[#2a2a2a] pt-4">
+                    <StockChart symbol={stockData.symbol} />
+                  </div>
+                )}
               </div>
             )}
 
