@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const FREE_FEATURES = [
   'SPY & QQQ live signals',
@@ -28,7 +29,7 @@ function CheckIcon({ green }: { green?: boolean }) {
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-black text-white page-bg">
 
       {/* ── Nav ── */}
       <header className="border-b border-[#2a2a2a] bg-[#111111]/90 backdrop-blur sticky top-0 z-40">
@@ -38,7 +39,7 @@ export default function HomePage() {
               <span className="text-xs font-black text-black">H</span>
             </div>
             <div>
-              <span className="text-base font-bold tracking-tight text-white">Hood Options</span>
+              <span className="text-base font-bold tracking-tight text-white">Hood Option</span>
               <span className="ml-2 text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-widest">Pro</span>
             </div>
           </div>
@@ -64,6 +65,7 @@ export default function HomePage() {
           </div>
         </div>
       </header>
+      <ThemeToggle />
 
       {/* ── Hero ── */}
       <section className="max-w-7xl mx-auto px-6 pt-24 pb-20 text-center">
@@ -76,7 +78,7 @@ export default function HomePage() {
           <span className="text-[#00C805]">real-time options signals</span>
         </h1>
         <p className="text-[#9e9e9e] text-lg max-w-2xl mx-auto mb-6">
-          Hood Options delivers live 0DTE call &amp; put setups for the biggest tickers — powered by Finnhub market data, built for active options traders.
+          Hood Option delivers live 0DTE call &amp; put setups for the biggest tickers — powered by Finnhub market data, built for active options traders.
         </p>
         <p className="text-[#4a4a4a] text-xs mb-10">
           Independent platform — not affiliated with, endorsed by, or connected to Robinhood Markets, Inc.
@@ -250,7 +252,7 @@ export default function HomePage() {
             </div>
           </a>
           <p className="text-[#3a3a3a] text-[10px] mt-4">
-            Affiliate disclosure: We may receive compensation if you sign up through this link. Hood Options is not affiliated with Robinhood Markets, Inc.
+            Affiliate disclosure: We may receive compensation if you sign up through this link. Hood Option is not affiliated with Robinhood Markets, Inc.
           </p>
         </div>
       </section>
@@ -357,7 +359,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-6 py-20 text-center">
           <h2 className="text-4xl font-black tracking-tight mb-4">Ready to trade with an edge?</h2>
           <p className="text-[#9e9e9e] text-lg mb-8 max-w-xl mx-auto">
-            Join Hood Options and get live 0DTE signals delivered straight to your screen.
+            Join Hood Option and get live 0DTE signals delivered straight to your screen.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
@@ -392,7 +394,7 @@ export default function HomePage() {
               <div className="w-6 h-6 rounded-full bg-[#00C805] flex items-center justify-center">
                 <span className="text-[10px] font-black text-black">H</span>
               </div>
-              <span className="text-sm font-bold text-white">Hood Options</span>
+              <span className="text-sm font-bold text-white">Hood Option</span>
             </div>
             <div className="flex items-center gap-6">
               <Link href="/dashboard" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">App</Link>
@@ -407,16 +409,16 @@ export default function HomePage() {
           {/* Legal disclaimer */}
           <div className="space-y-3">
             <p className="text-[11px] text-[#4a4a4a] leading-relaxed">
-              <span className="text-[#6b6b6b] font-semibold">IMPORTANT DISCLAIMER:</span> Hood Options is an independent, technology-driven platform designed solely for informational and educational purposes. All signals, trade setups, confidence scores, and analysis provided on this platform are generated algorithmically and do not constitute financial advice, investment recommendations, or solicitations to buy or sell any security or financial instrument.
+              <span className="text-[#6b6b6b] font-semibold">IMPORTANT DISCLAIMER:</span> Hood Option is an independent, technology-driven platform designed solely for informational and educational purposes. All signals, trade setups, confidence scores, and analysis provided on this platform are generated algorithmically and do not constitute financial advice, investment recommendations, or solicitations to buy or sell any security or financial instrument.
             </p>
             <p className="text-[11px] text-[#4a4a4a] leading-relaxed">
               Options trading involves substantial risk of loss and is not appropriate for all investors. 0DTE (zero days to expiration) options are highly speculative instruments that can expire worthless within a single trading session. Past signal performance is not indicative of future results. You may lose some or all of your invested capital.
             </p>
             <p className="text-[11px] text-[#4a4a4a] leading-relaxed">
-              Hood Options is not a registered investment adviser, broker-dealer, or financial planner. Nothing on this platform should be construed as personalized financial, legal, or tax advice. Always conduct your own due diligence and consult a licensed financial professional before making any investment decisions.
+              Hood Option is not a registered investment adviser, broker-dealer, or financial planner. Nothing on this platform should be construed as personalized financial, legal, or tax advice. Always conduct your own due diligence and consult a licensed financial professional before making any investment decisions.
             </p>
             <p className="text-[11px] text-[#3a3a3a] leading-relaxed">
-              © {new Date().getFullYear()} Hood Options. All rights reserved. Use of this platform constitutes acceptance of our terms. Market data provided for informational purposes only.
+              © {new Date().getFullYear()} Hood Option. All rights reserved. Use of this platform constitutes acceptance of our terms. Market data provided for informational purposes only.
             </p>
           </div>
 

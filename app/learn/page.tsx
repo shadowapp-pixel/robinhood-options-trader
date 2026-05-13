@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import ThemeToggle from '@/components/ThemeToggle';
 
 /* ── helpers ── */
 function SectionLabel({ text }: { text: string }) {
@@ -56,7 +57,7 @@ function PhoneMock({ children }: { children: React.ReactNode }) {
 /* ══════════════════════════════════════════════════════ */
 export default function LearnPage() {
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-black text-white page-bg">
 
       {/* ── Nav ── */}
       <header className="border-b border-[#2a2a2a] bg-[#111111]/90 backdrop-blur sticky top-0 z-40">
@@ -65,7 +66,7 @@ export default function LearnPage() {
             <div className="w-7 h-7 rounded-full bg-[#00C805] flex items-center justify-center shadow-[0_0_12px_rgba(0,200,5,0.4)]">
               <span className="text-xs font-black text-black">H</span>
             </div>
-            <span className="text-base font-bold tracking-tight">Hood Options</span>
+            <span className="text-base font-bold tracking-tight">Hood Option</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/dashboard" className="text-xs text-[#9e9e9e] hover:text-white transition-colors">← Back to App</Link>
@@ -76,6 +77,7 @@ export default function LearnPage() {
         </div>
       </header>
 
+      <ThemeToggle />
       <div className="max-w-4xl mx-auto px-6 py-12 space-y-20">
 
         {/* ── Hero ── */}
@@ -121,7 +123,7 @@ export default function LearnPage() {
                 {
                   term: 'Strike Price',
                   color: 'amber' as const,
-                  def: 'The agreed price at which you can buy (call) or sell (put) the stock. Hood Options always targets the ATM (At-The-Money) strike — the strike closest to the current stock price.',
+                  def: 'The agreed price at which you can buy (call) or sell (put) the stock. Hood Option always targets the ATM (At-The-Money) strike — the strike closest to the current stock price.',
                   example: 'SPY is at $737. The ATM strike is $737.',
                 },
                 {
@@ -133,13 +135,13 @@ export default function LearnPage() {
                 {
                   term: 'Premium',
                   color: 'green' as const,
-                  def: 'The price you pay for the contract. Hood Options shows this as "Premium per Share." Because one contract = 100 shares, multiply by 100 to get your total cost. This is your maximum possible loss.',
+                  def: 'The price you pay for the contract. Hood Option shows this as "Premium per Share." Because one contract = 100 shares, multiply by 100 to get your total cost. This is your maximum possible loss.',
                   example: 'Premium $2.10/share × 100 = $210 contract cost.',
                 },
                 {
                   term: 'ITM / ATM / OTM',
                   color: 'amber' as const,
-                  def: 'In-The-Money (ITM) = favorable strike. At-The-Money (ATM) = strike equals current price. Out-of-The-Money (OTM) = unfavorable strike. Hood Options targets ATM for the best balance of cost and probability.',
+                  def: 'In-The-Money (ITM) = favorable strike. At-The-Money (ATM) = strike equals current price. Out-of-The-Money (OTM) = unfavorable strike. Hood Option targets ATM for the best balance of cost and probability.',
                   example: 'SPY at $737 → $737 strike = ATM.',
                 },
               ].map(({ term, color, def, example }) => (
@@ -164,11 +166,11 @@ export default function LearnPage() {
         </section>
 
         {/* ════════════════════════════════════════════════ */}
-        {/* SECTION 2 — Reading Hood Options Signals        */}
+        {/* SECTION 2 — Reading Hood Option Signals        */}
         {/* ════════════════════════════════════════════════ */}
         <section>
           <SectionLabel text="Section 2" />
-          <h2 className="text-2xl font-black mb-2">Reading the Hood Options Dashboard</h2>
+          <h2 className="text-2xl font-black mb-2">Reading the Hood Option Dashboard</h2>
           <p className="text-[#9e9e9e] text-sm mb-8">Every signal card on the Market Tracker tells a complete story. Here&apos;s how to read it.</p>
 
           {/* Signal card anatomy */}
@@ -302,7 +304,7 @@ export default function LearnPage() {
               }
             />
 
-            <RHStep step={4} title="Choose Call or Put" description="Match the contract type to your Hood Options signal direction"
+            <RHStep step={4} title="Choose Call or Put" description="Match the contract type to your Hood Option signal direction"
               mockUI={
                 <PhoneMock>
                   <p className="text-[#555] text-[10px] mb-2">Select Type</p>

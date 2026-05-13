@@ -7,7 +7,7 @@ export default function SignUpPage() {
         <div className="w-8 h-8 rounded-full bg-[#00C805] flex items-center justify-center shadow-[0_0_16px_rgba(0,200,5,0.4)]">
           <span className="text-sm font-black text-black">H</span>
         </div>
-        <span className="text-xl font-bold text-white tracking-tight">Hood Options</span>
+        <span className="text-xl font-bold text-white tracking-tight">Hood Option</span>
       </div>
       <SignUp />
     </main>

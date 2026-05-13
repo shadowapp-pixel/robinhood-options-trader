@@ -5,6 +5,7 @@ import { UserButton, useUser, SignInButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import MarketTracker from '@/components/MarketTrackerV2';
 import StockChart    from '@/components/StockChart';
+import ThemeToggle   from '@/components/ThemeToggle';
 
 type Tab = 'tracker' | 'search';
 
@@ -393,7 +394,7 @@ export default function Home() {
 
   /* ── Render ── */
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-black text-white page-bg">
 
       {/* ── Top nav bar ── */}
       <header className="border-b border-[#2a2a2a] bg-[#111111]/90 backdrop-blur sticky top-0 z-40">
@@ -405,7 +406,7 @@ export default function Home() {
               <span className="text-xs font-black text-black">H</span>
             </div>
             <div>
-              <span className="text-base font-bold tracking-tight text-white">Hood Options</span>
+              <span className="text-base font-bold tracking-tight text-white">Hood Option</span>
               <span className="ml-2 text-[10px] font-semibold text-[#6b6b6b] uppercase tracking-widest">Pro</span>
             </div>
           </Link>
@@ -460,6 +461,7 @@ export default function Home() {
         </div>
       </header>
 
+      <ThemeToggle />
       <div className="max-w-7xl mx-auto px-6 py-6">
 
         {/* ── Market Tracker tab ── */}
@@ -473,7 +475,7 @@ export default function Home() {
             </div>
             <p className="text-white font-bold text-lg mb-2">Trade Search is a Pro feature</p>
             <p className="text-[#6b6b6b] text-sm max-w-sm mx-auto mb-6">
-              Search any ticker for live 0DTE call, put &amp; straddle setups — unlocked with Hood Options Pro.
+              Search any ticker for live 0DTE call, put &amp; straddle setups — unlocked with Hood Option Pro.
             </p>
             {isLoaded && !user ? (
               <SignInButton mode="modal">

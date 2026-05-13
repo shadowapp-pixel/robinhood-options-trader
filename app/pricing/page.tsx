@@ -4,6 +4,7 @@ import { useUser } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const FREE_FEATURES = [
   'SPY & QQQ live signals',
@@ -63,7 +64,7 @@ function PricingContent() {
   };
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-black text-white page-bg">
       {/* Header */}
       <header className="border-b border-[#2a2a2a] bg-[#111111]/90 backdrop-blur sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
@@ -71,12 +72,13 @@ function PricingContent() {
             <div className="w-7 h-7 rounded-full bg-[#00C805] flex items-center justify-center shadow-[0_0_12px_rgba(0,200,5,0.4)]">
               <span className="text-xs font-black text-black">H</span>
             </div>
-            <span className="text-base font-bold tracking-tight">Hood Options</span>
+            <span className="text-base font-bold tracking-tight">Hood Option</span>
           </Link>
           <Link href="/dashboard" className="text-[#9e9e9e] text-sm hover:text-white transition-colors">← Back to app</Link>
         </div>
       </header>
 
+      <ThemeToggle />
       <div className="max-w-5xl mx-auto px-6 py-16">
         {/* Hero */}
         <div className="text-center mb-14">
@@ -92,7 +94,7 @@ function PricingContent() {
         {/* Success / Canceled banners */}
         {isSuccess && (
           <div className="mb-8 rounded-xl bg-[#00C805]/10 border border-[#00C805]/30 px-5 py-4 text-center">
-            <p className="text-[#00C805] font-bold text-lg mb-1">🎉 Welcome to Hood Options Pro!</p>
+            <p className="text-[#00C805] font-bold text-lg mb-1">🎉 Welcome to Hood Option Pro!</p>
             <p className="text-[#9e9e9e] text-sm">Your account is now upgraded. All tickers and alerts are unlocked.</p>
           </div>
         )}
@@ -204,7 +206,7 @@ function PricingContent() {
             </a>
           </div>
           <p className="text-[#3a3a3a] text-[10px] mt-3">
-            Affiliate disclosure: We may receive compensation if you sign up through this link. Hood Options is not affiliated with Robinhood Markets, Inc.
+            Affiliate disclosure: We may receive compensation if you sign up through this link. Hood Option is not affiliated with Robinhood Markets, Inc.
           </p>
         </div>
       </div>
