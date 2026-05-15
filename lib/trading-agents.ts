@@ -17,9 +17,9 @@ import type { ComputedIndicators, FundamentalsData, NewsItem, SentimentData } fr
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-// Models — use claude-3-7-sonnet (Feb 2025) which is broadly available
-const ANALYST_MODEL  = 'claude-3-7-sonnet-20250219';
-const DECISION_MODEL = 'claude-3-7-sonnet-20250219';
+// Models — claude-3-5-sonnet is broadly available on all Anthropic plans
+const ANALYST_MODEL  = 'claude-3-5-sonnet-20241022';
+const DECISION_MODEL = 'claude-3-5-sonnet-20241022';
 
 // ─── Output types ─────────────────────────────────────────────────────────────
 
