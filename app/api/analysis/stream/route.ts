@@ -86,13 +86,19 @@ export async function GET(request: NextRequest) {
           return;
         }
 
-        // ── Redis cache check ────────────────────────────────────────────────
-        const cacheKey = `ai-analysis:${symbol}`;
-        const cached   = await redis.get<AnalysisReport>(cacheKey);
-        if (cached) {
-          send({ type: 'cached', report: cached });
-          controller.close();
-          return;
+        // ── Redis cache check (skip if ?fresh=1) ────────────────────────────
+        const cacheKey  = `ai-analysis:${symbol}`;
+        const wantFresh = request.nextUrl.searchParams.get('fresh') === '1';
+        if (!wantFresh) {
+          const cached = await redis.get<AnalysisReport>(cacheKey);
+          if (cached) {
+            send({ type: 'cached', report: cached });
+            controller.close();
+            return;
+          }
+        } else {
+          // Delete stale cache so fresh result is written after the run
+          await redis.del(cacheKey);
         }
 
         // ── 1. Fetch live quote to get current price ─────────────────────────

@@ -431,7 +431,9 @@ export default function AIAnalysisPanel() {
 
     setPhase({ name: 'loading', steps: initialSteps() });
 
-    const es = new EventSource(`/api/analysis/stream?symbol=${upper}`);
+    // Always send fresh=1 so each button click bypasses the Redis cache
+    // and calls Claude with the current API key / model
+    const es = new EventSource(`/api/analysis/stream?symbol=${upper}&fresh=1`);
     esRef.current = es;
 
     es.onmessage = (event) => {
@@ -572,6 +574,17 @@ export default function AIAnalysisPanel() {
                 {new Date(report.generatedAt).toLocaleTimeString()}
               </span>
             </div>
+
+            {/* Diagnostic banner — shown when agents failed (error injected into summary) */}
+            {report.technical.summary.startsWith('Agent error:') && (
+              <div className="bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-xl px-5 py-4">
+                <p className="text-[10px] text-[#EF4444] uppercase tracking-widest font-bold mb-1">⚠ Claude API Error Detected</p>
+                <p className="text-xs text-[#EF4444] font-mono break-all">{report.technical.summary}</p>
+                <p className="text-[10px] text-[#9e9e9e] mt-2">
+                  Check that <span className="font-mono text-white">ANTHROPIC_API_KEY</span> is set correctly in Vercel → Settings → Environment Variables, then redeploy.
+                </p>
+              </div>
+            )}
 
             {/* 1. Decision banner */}
             <DecisionBanner
