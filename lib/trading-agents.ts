@@ -17,9 +17,9 @@ import type { ComputedIndicators, FundamentalsData, NewsItem, SentimentData } fr
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-// Models — claude-3-5-sonnet is broadly available on all Anthropic plans
-const ANALYST_MODEL  = 'claude-3-5-sonnet-20241022';
-const DECISION_MODEL = 'claude-3-5-sonnet-20241022';
+// Models — haiku is available on all Anthropic plans (including basic/free-trial)
+const ANALYST_MODEL  = 'claude-3-5-haiku-20241022';
+const DECISION_MODEL = 'claude-3-5-haiku-20241022';
 
 // ─── Output types ─────────────────────────────────────────────────────────────
 
