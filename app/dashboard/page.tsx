@@ -745,10 +745,20 @@ export default function Home() {
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-[10px] text-[#6b6b6b] uppercase tracking-widest mb-1">Signal Score</p>
-                          <p className={`text-lg font-bold ${acText}`}>{s.confidence.toFixed(0)}%</p>
-                          <div className="w-20 h-1.5 bg-[#2a2a2a] rounded-full mt-1 overflow-hidden">
-                            <div className={`h-full rounded-full ${confColor}`} style={{ width: `${s.confidence}%` }} />
-                          </div>
+                          <p className={`text-2xl font-bold ${acText}`}>{s.confidence.toFixed(0)}%</p>
+                        </div>
+                      </div>
+
+                      {/* Signal Confidence — full-width bar */}
+                      <div className="px-6 py-3 border-b border-[#2a2a2a]">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold">Signal Confidence</span>
+                          <span className={`text-[10px] font-semibold text-[#6b6b6b]`}>
+                            {s.confidence >= 75 ? 'Strong setup' : s.confidence >= 60 ? 'Moderate setup' : 'Weak setup'}
+                          </span>
+                        </div>
+                        <div className="h-2 bg-[#1e1e1e] rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${confColor}`} style={{ width: `${s.confidence}%` }} />
                         </div>
                       </div>
 

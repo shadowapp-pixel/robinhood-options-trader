@@ -253,6 +253,28 @@ function FavCard({
                           </span>
                         </div>
                         <p className="text-xs text-[#6b6b6b] mb-3">{s.description}</p>
+
+                        {/* Signal Confidence bar */}
+                        {(() => {
+                          const confColor = s.confidence >= 75 ? 'bg-[#00C805]' : s.confidence >= 60 ? 'bg-amber-500' : 'bg-[#EF4444]';
+                          const confText  = s.confidence >= 75 ? 'text-[#00C805]' : s.confidence >= 60 ? 'text-amber-400' : 'text-[#EF4444]';
+                          const confLabel = s.confidence >= 75 ? 'Strong setup' : s.confidence >= 60 ? 'Moderate setup' : 'Weak setup';
+                          return (
+                            <div className="mb-3">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold">Signal Confidence</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-[#6b6b6b]">{confLabel}</span>
+                                  <span className={`text-sm font-bold font-mono ${confText}`}>{s.confidence.toFixed(0)}%</span>
+                                </div>
+                              </div>
+                              <div className="h-2 bg-[#1e1e1e] rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${confColor}`} style={{ width: `${s.confidence}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         <div className="grid grid-cols-3 gap-2">
                           {[
                             { label: 'Entry',         value: `$${s.entryPrice}`,     color: 'text-white'     },
