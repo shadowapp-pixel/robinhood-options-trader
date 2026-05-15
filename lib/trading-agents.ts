@@ -211,19 +211,23 @@ export async function runFundamentalAgent(
   };
 
   const f = fundamentals;
+  // fv: safe formatter — returns 'N/A' when value is null OR when the whole fundamentals object is null
+  const fv = (v: number | null | undefined, dec = 1, suffix = '') =>
+    v != null ? v.toFixed(dec) + suffix : 'N/A';
+
   const userContent = `
 Symbol: ${symbol} | Current Price: $${price.toFixed(2)}
 
 FUNDAMENTAL METRICS:
-P/E Ratio (TTM): ${f?.peRatioTTM !== null ? f!.peRatioTTM!.toFixed(1) : 'N/A'}
-P/B Ratio: ${f?.pbRatio !== null ? f!.pbRatio!.toFixed(2) : 'N/A'}
-EPS Growth (3Y): ${f?.epsGrowth3Y !== null ? f!.epsGrowth3Y!.toFixed(1) + '%' : 'N/A'}
-Revenue Growth (3Y): ${f?.revenueGrowth3Y !== null ? f!.revenueGrowth3Y!.toFixed(1) + '%' : 'N/A'}
-Gross Margin (TTM): ${f?.grossMargin !== null ? f!.grossMargin!.toFixed(1) + '%' : 'N/A'}
-52-Week High: ${f?.week52High !== null ? '$' + f!.week52High!.toFixed(2) : 'N/A'}
-52-Week Low: ${f?.week52Low !== null ? '$' + f!.week52Low!.toFixed(2) : 'N/A'}
-Beta: ${f?.beta !== null ? f!.beta!.toFixed(2) : 'N/A'}
-Dividend Yield: ${f?.dividendYield !== null ? f!.dividendYield!.toFixed(2) + '%' : 'N/A'}
+P/E Ratio (TTM): ${fv(f?.peRatioTTM)}
+P/B Ratio: ${fv(f?.pbRatio, 2)}
+EPS Growth (3Y): ${fv(f?.epsGrowth3Y, 1, '%')}
+Revenue Growth (3Y): ${fv(f?.revenueGrowth3Y, 1, '%')}
+Gross Margin (TTM): ${fv(f?.grossMargin, 1, '%')}
+52-Week High: ${f?.week52High != null ? '$' + f.week52High.toFixed(2) : 'N/A'}
+52-Week Low: ${f?.week52Low  != null ? '$' + f.week52Low.toFixed(2)  : 'N/A'}
+Beta: ${fv(f?.beta, 2)}
+Dividend Yield: ${fv(f?.dividendYield, 2, '%')}
 
 Note: If most metrics are N/A, this may be an ETF or index. Set valuation/peSignal/growthOutlook to "unavailable" and explain in summary.
 
@@ -274,9 +278,9 @@ RECENT NEWS (last 7 days):
 ${headlines || 'No news articles returned.'}
 
 SOCIAL SENTIMENT:
-Social Buzz Score: ${sentiment?.buzz !== null ? ((sentiment!.buzz ?? 0) * 100).toFixed(0) + '/100' : 'N/A'}
-Bullish %: ${sentiment?.bullishPercent !== null ? sentiment!.bullishPercent!.toFixed(1) + '%' : 'N/A'}
-Bearish %: ${sentiment?.bearishPercent !== null ? sentiment!.bearishPercent!.toFixed(1) + '%' : 'N/A'}
+Social Buzz Score: ${sentiment?.buzz != null ? (sentiment.buzz * 100).toFixed(0) + '/100' : 'N/A'}
+Bullish %: ${sentiment?.bullishPercent != null ? sentiment.bullishPercent.toFixed(1) + '%' : 'N/A'}
+Bearish %: ${sentiment?.bearishPercent != null ? sentiment.bearishPercent.toFixed(1) + '%' : 'N/A'}
 
 Return ONLY valid JSON:
 {
