@@ -7,8 +7,9 @@ import MarketTracker      from '@/components/MarketTrackerV2';
 import StockChart         from '@/components/StockChart';
 import ThemeToggle        from '@/components/ThemeToggle';
 import FavoritesTracker   from '@/components/FavoritesTracker';
+import AIAnalysisPanel    from '@/components/AIAnalysisPanel';
 
-type Tab = 'tracker' | 'search' | 'favorites';
+type Tab = 'tracker' | 'search' | 'favorites' | 'ai';
 
 /* ─── Trade Search types ─────────────────────────────────────────────────── */
 
@@ -492,7 +493,7 @@ export default function Home() {
 
           {/* Tab switcher */}
           <nav className="flex gap-1 bg-[#1e1e1e] border border-[#2a2a2a] p-1 rounded-xl">
-            {(['tracker', 'search', 'favorites'] as Tab[]).map(tab => (
+            {(['tracker', 'search', 'favorites', 'ai'] as Tab[]).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -502,7 +503,10 @@ export default function Home() {
                     : 'text-[#9e9e9e] hover:text-white'
                 }`}
               >
-                {tab === 'tracker' ? 'Market Tracker' : tab === 'search' ? 'Trade Search' : '★ Favorites'}
+                {tab === 'tracker'   ? 'Market Tracker' :
+                 tab === 'search'    ? 'Trade Search'   :
+                 tab === 'favorites' ? '★ Favorites'    :
+                                      '🤖 AI Analysis'}
               </button>
             ))}
           </nav>
@@ -545,6 +549,37 @@ export default function Home() {
 
         {/* ── Market Tracker tab ── */}
         {activeTab === 'tracker' && <MarketTracker />}
+
+        {/* ── AI Analysis tab — paywall ── */}
+        {activeTab === 'ai' && !isPro && (
+          <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl px-6 py-16 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-[#1e1e1e] border border-[#2a2a2a] flex items-center justify-center mx-auto mb-5 text-2xl">
+              🤖
+            </div>
+            <p className="text-white font-bold text-lg mb-2">AI Analysis is a Pro feature</p>
+            <p className="text-[#6b6b6b] text-sm max-w-sm mx-auto mb-6">
+              Run a 7-agent deep analysis on any stock — Technical, Fundamental, Sentiment,
+              Bull/Bear Research, Risk Management, and a final Portfolio Manager decision.
+            </p>
+            {isLoaded && !user ? (
+              <SignInButton mode="modal">
+                <button className="px-6 py-2.5 bg-[#00C805] hover:bg-[#00a004] text-black text-sm font-bold rounded-xl transition-colors shadow-[0_0_20px_rgba(0,200,5,0.25)]">
+                  Sign in to upgrade
+                </button>
+              </SignInButton>
+            ) : (
+              <a
+                href="/pricing"
+                className="inline-block px-6 py-2.5 bg-[#00C805] hover:bg-[#00a004] text-black text-sm font-bold rounded-xl transition-colors shadow-[0_0_20px_rgba(0,200,5,0.25)]"
+              >
+                Upgrade to Pro →
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* ── AI Analysis tab — Pro ── */}
+        {activeTab === 'ai' && isPro && <AIAnalysisPanel />}
 
         {/* ── Favorites tab — paywall ── */}
         {activeTab === 'favorites' && !isPro && (
