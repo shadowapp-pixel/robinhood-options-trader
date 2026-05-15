@@ -87,8 +87,8 @@ export async function GET(request: NextRequest) {
         }
 
         // ── Redis cache check (skip if ?fresh=1) ────────────────────────────
-        // v3 key — invalidates all previously cached error results
-        const cacheKey  = `ai-analysis:v3:${symbol}`;
+        // v4 key — invalidates all previously cached error results
+        const cacheKey  = `ai-analysis:v4:${symbol}`;
         const wantFresh = request.nextUrl.searchParams.get('fresh') === '1';
         if (!wantFresh) {
           const cached = await redis.get<AnalysisReport>(cacheKey);

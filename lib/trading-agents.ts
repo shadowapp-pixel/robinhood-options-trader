@@ -17,9 +17,9 @@ import type { ComputedIndicators, FundamentalsData, NewsItem, SentimentData } fr
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-// Models — haiku is available on all Anthropic plans (including basic/free-trial)
-const ANALYST_MODEL  = 'claude-3-5-haiku-20241022';
-const DECISION_MODEL = 'claude-3-5-haiku-20241022';
+// Models — claude-3-haiku (original) is the most widely available model
+const ANALYST_MODEL  = 'claude-3-haiku-20240307';
+const DECISION_MODEL = 'claude-3-haiku-20240307';
 
 // ─── Output types ─────────────────────────────────────────────────────────────
 
