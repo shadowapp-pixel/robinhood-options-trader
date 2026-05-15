@@ -17,10 +17,9 @@ import type { ComputedIndicators, FundamentalsData, NewsItem, SentimentData } fr
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-// Fast model for the 5 analyst/researcher agents
-const ANALYST_MODEL = 'claude-3-5-sonnet-20241022';
-// Same model for the final decision — produces highest-quality synthesis
-const DECISION_MODEL = 'claude-3-5-sonnet-20241022';
+// Models — use claude-3-7-sonnet (Feb 2025) which is broadly available
+const ANALYST_MODEL  = 'claude-3-7-sonnet-20250219';
+const DECISION_MODEL = 'claude-3-7-sonnet-20250219';
 
 // ─── Output types ─────────────────────────────────────────────────────────────
 
@@ -137,6 +136,12 @@ function safeParse<T>(text: string, fallback: T): T {
   }
 }
 
+/** Returns error message string from any thrown value */
+function errMsg(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
 function n(v: number | null | undefined, decimals = 2): string {
   return v != null ? v.toFixed(decimals) : 'N/A';
 }
@@ -192,9 +197,9 @@ Analyse these indicators and return ONLY valid JSON (no markdown) with this exac
       'Analyse the provided indicators objectively. Respond ONLY with valid JSON — no commentary, no markdown fences.',
       userContent,
     );
-    return safeParse<TechnicalAnalysis>(text, fallback);
-  } catch {
-    return fallback;
+    return safeParse<TechnicalAnalysis>(text, { ...fallback, summary: `Parse error — raw: ${text.slice(0, 120)}` });
+  } catch (err) {
+    return { ...fallback, summary: `Agent error: ${errMsg(err)}` };
   }
 }
 
@@ -249,9 +254,9 @@ Return ONLY valid JSON:
       'Respond ONLY with valid JSON — no commentary, no markdown fences.',
       userContent,
     );
-    return safeParse<FundamentalAnalysis>(text, fallback);
-  } catch {
-    return fallback;
+    return safeParse<FundamentalAnalysis>(text, { ...fallback, summary: `Parse error — raw: ${text.slice(0, 120)}` });
+  } catch (err) {
+    return { ...fallback, summary: `Agent error: ${errMsg(err)}` };
   }
 }
 
@@ -300,9 +305,9 @@ Return ONLY valid JSON:
       'Respond ONLY with valid JSON — no commentary, no markdown fences.',
       userContent,
     );
-    return safeParse<SentimentAnalysis>(text, fallback);
-  } catch {
-    return fallback;
+    return safeParse<SentimentAnalysis>(text, { ...fallback, summary: `Parse error — raw: ${text.slice(0, 120)}` });
+  } catch (err) {
+    return { ...fallback, summary: `Agent error: ${errMsg(err)}` };
   }
 }
 
@@ -352,9 +357,9 @@ Return ONLY valid JSON:
       'Respond ONLY with valid JSON — no commentary, no markdown fences.',
       userContent,
     );
-    return safeParse<BullCase>(text, fallback);
-  } catch {
-    return fallback;
+    return safeParse<BullCase>(text, { ...fallback, thesis: `Agent error (parse) — raw: ${text.slice(0, 120)}` });
+  } catch (err) {
+    return { ...fallback, thesis: `Agent error: ${errMsg(err)}` };
   }
 }
 
@@ -404,9 +409,9 @@ Return ONLY valid JSON:
       'Respond ONLY with valid JSON — no commentary, no markdown fences.',
       userContent,
     );
-    return safeParse<BearCase>(text, fallback);
-  } catch {
-    return fallback;
+    return safeParse<BearCase>(text, { ...fallback, thesis: `Agent error (parse) — raw: ${text.slice(0, 120)}` });
+  } catch (err) {
+    return { ...fallback, thesis: `Agent error: ${errMsg(err)}` };
   }
 }
 
@@ -457,9 +462,9 @@ Return ONLY valid JSON:
       'Respond ONLY with valid JSON — no commentary, no markdown fences.',
       userContent,
     );
-    return safeParse<RiskAssessment>(text, fallback);
-  } catch {
-    return fallback;
+    return safeParse<RiskAssessment>(text, { ...fallback, recommendation: `Agent error (parse) — raw: ${text.slice(0, 120)}` });
+  } catch (err) {
+    return { ...fallback, recommendation: `Agent error: ${errMsg(err)}`, volatilityNote: errMsg(err) };
   }
 }
 
@@ -534,8 +539,8 @@ Return ONLY valid JSON:
       userContent,
       1500,
     );
-    return safeParse<PortfolioDecision>(text, fallback);
-  } catch {
-    return fallback;
+    return safeParse<PortfolioDecision>(text, { ...fallback, rationale: `Agent error (parse) — raw: ${text.slice(0, 200)}` });
+  } catch (err) {
+    return { ...fallback, rationale: `Agent error: ${errMsg(err)}` };
   }
 }
