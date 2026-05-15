@@ -3,8 +3,10 @@ import { currentUser } from '@clerk/nextjs/server';
 import { isProUser } from '@/lib/auth';
 import { redis } from '@/lib/redis';
 import { runSignal, buildSuggestions, type Quote } from '@/lib/signals';
+import { getATMOptions, type ATMOptions } from '@/lib/tradier';
 
-const CACHE_TTL = 28; // seconds — shared cache key with /api/tracker
+const CACHE_TTL         = 28;   // seconds — shared with /api/tracker
+const TRADIER_CACHE_TTL = 60;   // cache Tradier options for 60 s (data is already ~15 min delayed)
 
 async function fetchQuoteCached(symbol: string, apiKey: string): Promise<Quote> {
   const cacheKey = `quote:${symbol}`;
@@ -23,6 +25,16 @@ async function fetchQuoteCached(symbol: string, apiKey: string): Promise<Quote> 
   return data;
 }
 
+async function fetchATMOptionsCached(symbol: string, price: number, token: string): Promise<ATMOptions> {
+  const cacheKey = `tradier:atm:${symbol}`;
+  const cached   = await redis.get<ATMOptions>(cacheKey);
+  if (cached) return cached;
+
+  const data = await getATMOptions(symbol, price, token);
+  await redis.set(cacheKey, data, { ex: TRADIER_CACHE_TTL });
+  return data;
+}
+
 export async function GET() {
   const user = await currentUser();
   if (!user || !isProUser(user)) {
@@ -38,12 +50,20 @@ export async function GET() {
     return NextResponse.json({ data: [], timestamp: new Date().toISOString() });
   }
 
-  /* Fetch all quotes concurrently */
+  const tradierKey = process.env.TRADIER_SANDBOX_KEY;
+
+  /* Fetch all quotes + options concurrently */
   const settled = await Promise.allSettled(
     symbols.map(async symbol => {
       const q   = await fetchQuoteCached(symbol, apiKey);
       const sig = runSignal(q.c, q.h, q.l, q.o);
-      const suggestions = buildSuggestions(symbol, q.c, q.dp, sig.direction, sig.confidence);
+
+      // Fetch real options data if Tradier key is configured
+      const realOptions = tradierKey
+        ? await fetchATMOptionsCached(symbol, q.c, tradierKey)
+        : undefined;
+
+      const suggestions = buildSuggestions(symbol, q.c, q.dp, sig.direction, sig.confidence, 'medium', realOptions);
       return {
         symbol,
         price:         q.c,

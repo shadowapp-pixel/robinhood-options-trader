@@ -2,8 +2,10 @@ import { currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { isProUser } from '@/lib/auth';
 import { redis } from '@/lib/redis';
+import { getATMOptions, type ATMOptions } from '@/lib/tradier';
 
-const CACHE_TTL = 28; // seconds — slightly under the 30s client refresh interval
+const CACHE_TTL         = 28;   // seconds — slightly under the 30s client refresh interval
+const TRADIER_CACHE_TTL = 60;   // Tradier data is ~15 min delayed; 60 s extra cache is negligible
 
 const WATCHLIST = [
   { symbol: 'AAPL',  name: 'Apple',           type: 'mag7',  volTier: 'low',    pro: true  },
@@ -25,6 +27,15 @@ const VOL_MOVE: Record<string, number> = {
 };
 
 type Quote = { c: number; h: number; l: number; o: number; pc: number; dp: number };
+
+async function fetchATMOptionsCached(symbol: string, price: number, token: string): Promise<ATMOptions> {
+  const cacheKey = `tradier:atm:${symbol}`;
+  const cached   = await redis.get<ATMOptions>(cacheKey);
+  if (cached) return cached;
+  const data = await getATMOptions(symbol, price, token);
+  await redis.set(cacheKey, data, { ex: TRADIER_CACHE_TTL });
+  return data;
+}
 
 async function fetchQuote(symbol: string, apiKey: string): Promise<Quote> {
   const cacheKey = `quote:${symbol}`;
@@ -92,21 +103,30 @@ function runSignal(c: number, h: number, l: number, o: number) {
 function buildSuggestions(
   symbol: string, price: number, changePercent: number,
   direction: string, signalConfidence: number, volTier: string,
+  realOptions?: ATMOptions,
 ) {
-  const move            = VOL_MOVE[volTier] ?? VOL_MOVE.medium;
-  const premiumPerShare = parseFloat((price * move * 2).toFixed(2));
-  const contractCost    = parseFloat((premiumPerShare * 100).toFixed(2));
-  const contractTarget  = parseFloat((contractCost * 1.2).toFixed(2));
-  const callEntry       = parseFloat(price.toFixed(2));
-  const callExit        = parseFloat((price * (1 + move)).toFixed(2));
-  const putEntry        = parseFloat(price.toFixed(2));
-  const putExit         = parseFloat((price * (1 - move)).toFixed(2));
+  const move = VOL_MOVE[volTier] ?? VOL_MOVE.medium;
+
+  const callAsk    = realOptions?.call?.ask  && realOptions.call.ask  > 0 ? realOptions.call.ask  : price * move * 2;
+  const putAsk     = realOptions?.put?.ask   && realOptions.put.ask   > 0 ? realOptions.put.ask   : price * move * 2;
+  const callStrike = realOptions?.call?.strike ?? price;
+  const putStrike  = realOptions?.put?.strike  ?? price;
+  const expLabel   = realOptions?.expiration ? `Exp ${realOptions.expiration}` : '0DTE (Today)';
+
+  const callContractCost = parseFloat((callAsk * 100).toFixed(2));
+  const putContractCost  = parseFloat((putAsk  * 100).toFixed(2));
+  const callExit = parseFloat((price * (1 + move)).toFixed(2));
+  const putExit  = parseFloat((price * (1 - move)).toFixed(2));
+
   const callConf = direction === 'CALL'
     ? Math.min(88, signalConfidence + Math.abs(changePercent) * 2)
     : Math.max(40, signalConfidence - 20);
   const putConf = direction === 'PUT'
     ? Math.min(88, signalConfidence + Math.abs(changePercent) * 2)
     : Math.max(40, signalConfidence - 20);
+
+  const fmtStrike = (strike: number, isReal: boolean) =>
+    isReal ? `$${strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(2)}` : `~$${Math.round(strike)} ATM`;
 
   return [
     {
@@ -115,10 +135,11 @@ function buildSuggestions(
       description: direction === 'CALL'
         ? `Uptrend confirmed. Stock needs to reach $${callExit} for ~20% premium gain.`
         : `Low-conviction reversal setup. Needs $${callExit} to capture 20% premium gain.`,
-      entryPrice: callEntry.toFixed(2), exitPrice: callExit.toFixed(2),
-      premiumPerShare: premiumPerShare.toFixed(2), contractCost: contractCost.toFixed(2),
-      contractTarget: contractTarget.toFixed(2), strike: `~$${callEntry.toFixed(0)} ATM`,
-      timeframe: '0DTE (Today)', confidence: parseFloat(callConf.toFixed(2)),
+      entryPrice: price.toFixed(2), exitPrice: callExit.toFixed(2),
+      premiumPerShare: callAsk.toFixed(2), contractCost: callContractCost.toFixed(2),
+      contractTarget: (callContractCost * 1.2).toFixed(2),
+      strike: fmtStrike(callStrike, !!realOptions?.call),
+      timeframe: expLabel, confidence: parseFloat(callConf.toFixed(2)),
     },
     {
       type: 'PUT',
@@ -126,10 +147,11 @@ function buildSuggestions(
       description: direction === 'PUT'
         ? `Downtrend confirmed. Stock needs to reach $${putExit} for ~20% premium gain.`
         : `Low-conviction reversal setup. Needs $${putExit} to capture 20% premium gain.`,
-      entryPrice: putEntry.toFixed(2), exitPrice: putExit.toFixed(2),
-      premiumPerShare: premiumPerShare.toFixed(2), contractCost: contractCost.toFixed(2),
-      contractTarget: contractTarget.toFixed(2), strike: `~$${putEntry.toFixed(0)} ATM`,
-      timeframe: '0DTE (Today)', confidence: parseFloat(putConf.toFixed(2)),
+      entryPrice: price.toFixed(2), exitPrice: putExit.toFixed(2),
+      premiumPerShare: putAsk.toFixed(2), contractCost: putContractCost.toFixed(2),
+      contractTarget: (putContractCost * 1.2).toFixed(2),
+      strike: fmtStrike(putStrike, !!realOptions?.put),
+      timeframe: expLabel, confidence: parseFloat(putConf.toFixed(2)),
     },
   ];
 }
@@ -147,12 +169,20 @@ export async function GET() {
   const active = WATCHLIST.filter(w => isPro || !w.pro);
   const locked = WATCHLIST.filter(w => !isPro && w.pro);
 
+  const tradierKey = process.env.TRADIER_SANDBOX_KEY;
+
   // ── Fetch live quotes for active tickers ──────────────────────────────────
   const settled = await Promise.allSettled(
     active.map(async ({ symbol, name, type, volTier }) => {
       const q = await fetchQuote(symbol, apiKey);
       const sig = runSignal(q.c, q.h, q.l, q.o);
-      const suggestions = buildSuggestions(symbol, q.c, q.dp, sig.direction, sig.confidence, volTier);
+
+      // Fetch real options data if Tradier key is configured
+      const realOptions = tradierKey
+        ? await fetchATMOptionsCached(symbol, q.c, tradierKey)
+        : undefined;
+
+      const suggestions = buildSuggestions(symbol, q.c, q.dp, sig.direction, sig.confidence, volTier, realOptions);
       return {
         symbol, name, type, locked: false,
         price: q.c, dayOpen: q.o, dayHigh: q.h, dayLow: q.l, prevClose: q.pc,
