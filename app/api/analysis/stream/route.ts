@@ -71,10 +71,17 @@ export async function GET(request: NextRequest) {
           return;
         }
 
-        // ── API key ──────────────────────────────────────────────────────────
-        const finnhubKey = process.env.FINNHUB_API_KEY;
-        if (!finnhubKey) {
-          send({ type: 'error', message: 'FINNHUB_API_KEY not configured.' });
+        // ── API keys ─────────────────────────────────────────────────────────
+        const finnhubKey    = process.env.FINNHUB_API_KEY;
+        const anthropicKey  = process.env.ANTHROPIC_API_KEY;
+
+        if (!finnhubKey || finnhubKey === 'your_finnhub_key_here') {
+          send({ type: 'error', message: 'FINNHUB_API_KEY is not configured. Add it to your Vercel environment variables.' });
+          controller.close();
+          return;
+        }
+        if (!anthropicKey || anthropicKey === 'your_anthropic_key_here') {
+          send({ type: 'error', message: 'ANTHROPIC_API_KEY is not configured. Add your Anthropic API key to Vercel environment variables at vercel.com → your project → Settings → Environment Variables.' });
           controller.close();
           return;
         }
