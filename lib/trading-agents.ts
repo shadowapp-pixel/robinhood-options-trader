@@ -17,9 +17,9 @@ import type { ComputedIndicators, FundamentalsData, NewsItem, SentimentData } fr
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-// Models — claude-3-haiku (original) is the most widely available model
-const ANALYST_MODEL  = 'claude-3-haiku-20240307';
-const DECISION_MODEL = 'claude-3-haiku-20240307';
+// Models — Claude 4.x (only generation available on this account)
+const ANALYST_MODEL  = 'claude-haiku-4-5-20251001';   // fast + cheap for analyst agents
+const DECISION_MODEL = 'claude-sonnet-4-5-20250929';  // stronger reasoning for risk + portfolio
 
 // ─── Output types ─────────────────────────────────────────────────────────────
 
