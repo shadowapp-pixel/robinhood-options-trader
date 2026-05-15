@@ -576,15 +576,31 @@ export default function AIAnalysisPanel() {
             </div>
 
             {/* Diagnostic banner — shown when agents failed (error injected into summary) */}
-            {report.technical.summary.startsWith('Agent error:') && (
-              <div className="bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-xl px-5 py-4">
-                <p className="text-[10px] text-[#EF4444] uppercase tracking-widest font-bold mb-1">⚠ Claude API Error Detected</p>
-                <p className="text-xs text-[#EF4444] font-mono break-all">{report.technical.summary}</p>
-                <p className="text-[10px] text-[#9e9e9e] mt-2">
-                  Check that <span className="font-mono text-white">ANTHROPIC_API_KEY</span> is set correctly in Vercel → Settings → Environment Variables, then redeploy.
-                </p>
-              </div>
-            )}
+            {report.technical.summary.startsWith('Agent error:') && (() => {
+              const raw = report.technical.summary;
+              const isCredits  = raw.includes('credit balance');
+              const isAuth     = raw.includes('authentication') || raw.includes('401');
+              const isModel    = raw.includes('not_found') || raw.includes('404');
+              const isOverload = raw.includes('overloaded') || raw.includes('529');
+              const friendly = isCredits
+                ? { title: 'No Anthropic Credits', msg: 'Your Anthropic account has run out of API credits. Go to console.anthropic.com → Settings → Billing → Add Credits (a $5 top-up runs hundreds of analyses).', cta: 'console.anthropic.com → Billing' }
+                : isAuth
+                ? { title: 'Invalid API Key', msg: 'The ANTHROPIC_API_KEY in Vercel is invalid or revoked. Generate a new key at console.anthropic.com → API Keys and update it in Vercel environment variables.', cta: 'Vercel → Settings → Environment Variables' }
+                : isModel
+                ? { title: 'Model Not Available', msg: 'The requested Claude model is not available on your account. This may be a plan limitation.', cta: 'console.anthropic.com → Plans' }
+                : isOverload
+                ? { title: 'Anthropic API Overloaded', msg: 'Anthropic\'s servers are temporarily overloaded. Wait a minute and try again.', cta: null }
+                : { title: 'Claude API Error', msg: raw.replace('Agent error: ', ''), cta: null };
+              return (
+                <div className="bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-xl px-5 py-4">
+                  <p className="text-[10px] text-[#EF4444] uppercase tracking-widest font-bold mb-1">⚠ {friendly.title}</p>
+                  <p className="text-sm text-[#EF4444] leading-relaxed">{friendly.msg}</p>
+                  {friendly.cta && (
+                    <p className="text-[10px] text-[#9e9e9e] mt-2 font-mono">{friendly.cta}</p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* 1. Decision banner */}
             <DecisionBanner
