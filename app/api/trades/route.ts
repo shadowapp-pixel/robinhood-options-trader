@@ -196,7 +196,7 @@ function runSignal(
 function buildSuggestions(
   symbol: string, price: number, changePercent: number,
   direction: string, signalConfidence: number,
-  realOptions?: { call?: { ask: number; strike: number } | null; put?: { ask: number; strike: number } | null; expiration?: string } | null,
+  realOptions?: { call?: { ask: number; strike: number } | null; put?: { ask: number; strike: number } | null; expiration?: string | null } | null,
 ) {
   const move = 0.004 + Math.abs(changePercent) * 0.001;
 
@@ -204,7 +204,7 @@ function buildSuggestions(
   const putAsk     = realOptions?.put?.ask   && realOptions.put.ask   > 0 ? realOptions.put.ask   : parseFloat((price * move).toFixed(2));
   const callStrike = realOptions?.call?.strike ?? price;
   const putStrike  = realOptions?.put?.strike  ?? price;
-  const expLabel   = realOptions?.expiration ? `Exp ${realOptions.expiration}` : '0DTE (Today)';
+  const expLabel   = realOptions?.expiration ?? null ? `Exp ${realOptions!.expiration}` : '0DTE (Today)';
 
   const callContractCost = parseFloat((callAsk * 100).toFixed(2));
   const putContractCost  = parseFloat((putAsk  * 100).toFixed(2));
