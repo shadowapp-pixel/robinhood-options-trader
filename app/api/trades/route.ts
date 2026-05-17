@@ -63,6 +63,41 @@ function computeBollingerLocal(closes: number[], period = 20): BollingerResult |
   };
 }
 
+/** 20-day annualised volatility (%) from daily closes. */
+function computeVolatility20(closes: number[]): number | null {
+  if (closes.length < 21) return null;
+  const slice    = closes.slice(-21);
+  const returns  = slice.slice(1).map((c, i) => Math.log(c / slice[i]));
+  const mean     = returns.reduce((a, b) => a + b, 0) / returns.length;
+  const variance = returns.reduce((a, b) => a + (b - mean) ** 2, 0) / returns.length;
+  return Math.sqrt(variance * 252) * 100;
+}
+
+/** Estimates trading hours to reach targetPrice from currentPrice given annualised vol. */
+function estimateTimeToTarget(
+  currentPrice: number,
+  targetPrice:  number,
+  annualisedVolPct: number | null,
+): { label: string; moveNeeded: string } {
+  const movePct = ((targetPrice - currentPrice) / currentPrice) * 100;
+  const moveStr = `${movePct >= 0 ? '+' : ''}${movePct.toFixed(2)}%`;
+  if (!annualisedVolPct || annualisedVolPct <= 0) return { label: '—', moveNeeded: moveStr };
+  const hourlyVolPct = annualisedVolPct / Math.sqrt(252 * 6.5);
+  const hours        = Math.abs(movePct) / hourlyVolPct;
+  let label: string;
+  if      (hours < 0.33) label = '< 20 min';
+  else if (hours < 0.58) label = '~30 min';
+  else if (hours < 0.83) label = '~45 min';
+  else if (hours < 1.25) label = '~1 hour';
+  else if (hours < 1.75) label = '~1–2 hours';
+  else if (hours < 2.5)  label = '~2 hours';
+  else if (hours < 3.5)  label = '~3 hours';
+  else if (hours < 5.0)  label = '~4 hours';
+  else if (hours < 6.5)  label = '~5–6 hours';
+  else                   label = 'Multi-session';
+  return { label, moveNeeded: moveStr };
+}
+
 // ─── Daily candle fetch ───────────────────────────────────────────────────────
 
 async function fetchDailyCandles(symbol: string, apiKey: string): Promise<DailyCandles | null> {
@@ -197,6 +232,7 @@ function buildSuggestions(
   symbol: string, price: number, changePercent: number,
   direction: string, signalConfidence: number,
   realOptions?: { call?: { ask: number; strike: number } | null; put?: { ask: number; strike: number } | null; expiration?: string | null } | null,
+  vol?: number | null,
 ) {
   const move = 0.004 + Math.abs(changePercent) * 0.001;
 
@@ -217,11 +253,15 @@ function buildSuggestions(
   const fmtStrike = (strike: number, isReal: boolean) =>
     isReal ? `$${strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(2)}` : `~$${Math.round(strike)} ATM`;
 
+  const callTime = estimateTimeToTarget(price, callExit, vol ?? null);
+  const putTime  = estimateTimeToTarget(price, putExit,  vol ?? null);
+
   const suggestions: {
     type: string; title: string; description: string;
     entryPrice: string; exitPrice: string; premiumPerShare: string;
     contractCost: string; contractTarget: string; strike: string;
     timeframe: string; confidence: number;
+    estimatedTime: string; moveNeeded: string;
   }[] = [
     {
       type: 'CALL',
@@ -234,6 +274,7 @@ function buildSuggestions(
       contractTarget: (callContractCost * 1.2).toFixed(2),
       strike: fmtStrike(callStrike, !!realOptions?.call), timeframe: expLabel,
       confidence: parseFloat(callConf.toFixed(2)),
+      estimatedTime: callTime.label, moveNeeded: callTime.moveNeeded,
     },
     {
       type: 'PUT',
@@ -246,23 +287,27 @@ function buildSuggestions(
       contractTarget: (putContractCost * 1.2).toFixed(2),
       strike: fmtStrike(putStrike, !!realOptions?.put), timeframe: expLabel,
       confidence: parseFloat(putConf.toFixed(2)),
+      estimatedTime: putTime.label, moveNeeded: putTime.moveNeeded,
     },
   ];
 
   // Straddle for high-vol sessions
   if (Math.abs(changePercent) > 1.5) {
-    const straddleAsk  = parseFloat((callAsk + putAsk).toFixed(2));
-    const straddleCost = parseFloat((straddleAsk * 100).toFixed(2));
+    const straddleAsk   = parseFloat((callAsk + putAsk).toFixed(2));
+    const straddleCost  = parseFloat((straddleAsk * 100).toFixed(2));
+    const straddleExit  = parseFloat((changePercent > 0 ? price * 1.008 : price * 0.992).toFixed(2));
+    const straddleTime  = estimateTimeToTarget(price, straddleExit, vol ?? null);
     suggestions.push({
       type: 'STRADDLE',
       title:       `${symbol} Straddle — High Volatility Play`,
       description: `${Math.abs(changePercent).toFixed(2)}% move today. Buy ATM call + put for a big directional move.`,
       entryPrice: price.toFixed(2),
-      exitPrice:  changePercent > 0 ? (price * 1.008).toFixed(2) : (price * 0.992).toFixed(2),
+      exitPrice:  straddleExit.toFixed(2),
       premiumPerShare: straddleAsk.toFixed(2), contractCost: straddleCost.toFixed(2),
       contractTarget: (straddleCost * 1.2).toFixed(2),
       strike: fmtStrike(callStrike, !!realOptions?.call), timeframe: expLabel,
       confidence: parseFloat(Math.min(88, 72 + Math.abs(changePercent) / 2).toFixed(2)),
+      estimatedTime: straddleTime.label, moveNeeded: straddleTime.moveNeeded,
     });
   }
 
@@ -313,15 +358,16 @@ export async function GET(request: NextRequest) {
 
     // Run signal engine
     const patterns = candles ? detectPatterns(candles.closes, candles.highs, candles.lows) : [];
-    const macd     = candles ? computeMACDLocal(candles.closes)     : null;
-    const bb       = candles ? computeBollingerLocal(candles.closes) : null;
+    const macd     = candles ? computeMACDLocal(candles.closes)      : null;
+    const bb       = candles ? computeBollingerLocal(candles.closes)  : null;
+    const vol      = candles ? computeVolatility20(candles.closes)    : null;
     const sig      = runSignal(currentPrice, h, l, o, pc, patterns, macd, bb);
 
     // Fetch real ATM options (if Tradier key configured)
     const tradierKey  = process.env.TRADIER_SANDBOX_KEY;
     const realOptions = tradierKey ? await getATMOptions(symbol, currentPrice, tradierKey) : null;
 
-    const suggestions = buildSuggestions(symbol, currentPrice, changePercent, sig.direction, sig.confidence, realOptions);
+    const suggestions = buildSuggestions(symbol, currentPrice, changePercent, sig.direction, sig.confidence, realOptions, vol);
 
     return NextResponse.json({
       symbol,

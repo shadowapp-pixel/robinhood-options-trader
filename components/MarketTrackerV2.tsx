@@ -16,6 +16,8 @@ interface Suggestion {
   strike: string;
   timeframe: string;
   confidence: number;
+  estimatedTime?: string;
+  moveNeeded?: string;
 }
 interface TrackerEntry {
   symbol: string;
@@ -180,6 +182,20 @@ function SuggestionCard({ s, isPrimary }: { s: Suggestion; isPrimary: boolean })
           <div className="text-xs text-[#6b6b6b] mt-0.5 leading-relaxed">{s.description}</div>
         </div>
       </div>
+
+      {/* Estimated time to target */}
+      {s.estimatedTime && s.estimatedTime !== '—' && (
+        <div className={`flex items-center justify-between px-3 py-2 rounded-lg mb-3 border ${isPrimary ? `${accentBg} ${accentBdr}` : 'bg-[#111111] border-[#2a2a2a]'}`}>
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm">⏱</span>
+            <span className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold">Est. time to target</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-[#6b6b6b]">Move needed: <span className={`font-bold font-mono ${isPrimary ? accentText : 'text-[#9e9e9e]'}`}>{s.moveNeeded}</span></span>
+            <span className={`text-xs font-bold font-mono ${isPrimary ? accentText : 'text-[#9e9e9e]'}`}>{s.estimatedTime}</span>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-2 mb-3">
         {[

@@ -25,6 +25,8 @@ interface Suggestion {
   strike: string;
   timeframe: string;
   confidence: number;
+  estimatedTime?: string;
+  moveNeeded?: string;
 }
 
 interface SearchCondition  { label: string; pass: boolean; }
@@ -947,6 +949,23 @@ export default function Home() {
                           <div className={`h-full rounded-full transition-all ${confColor}`} style={{ width: `${s.confidence}%` }} />
                         </div>
                       </div>
+
+                      {/* Estimated time to target */}
+                      {s.estimatedTime && s.estimatedTime !== '—' && (
+                        <div className={`px-6 py-3 border-b border-[#2a2a2a] flex items-center justify-between ${acBg}`}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">⏱</span>
+                            <div>
+                              <p className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold">Est. Time to Target</p>
+                              <p className="text-[10px] text-[#4a4a4a] mt-0.5">Based on 20-day historical volatility · statistical estimate</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-lg font-bold font-mono ${acText}`}>{s.estimatedTime}</p>
+                            <p className="text-[10px] text-[#6b6b6b] mt-0.5">Move needed: <span className={`font-bold font-mono ${acText}`}>{s.moveNeeded}</span></p>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Key metrics grid */}
                       <div className="grid grid-cols-3 divide-x divide-[#2a2a2a] border-b border-[#2a2a2a]">

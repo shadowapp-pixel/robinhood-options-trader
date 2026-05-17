@@ -115,6 +115,57 @@ function computeBollingerLocal(closes: number[], period = 20): BollingerResult |
   };
 }
 
+/**
+ * 20-day annualised volatility (%) from daily closes.
+ * Used to estimate how long a price move will take.
+ */
+function computeVolatility20(closes: number[]): number | null {
+  if (closes.length < 21) return null;
+  const slice   = closes.slice(-21);
+  const returns = slice.slice(1).map((c, i) => Math.log(c / slice[i]));
+  const mean    = returns.reduce((a, b) => a + b, 0) / returns.length;
+  const variance = returns.reduce((a, b) => a + (b - mean) ** 2, 0) / returns.length;
+  return Math.sqrt(variance * 252) * 100; // annualised %
+}
+
+/**
+ * Estimates how many trading hours it will take for the stock to move
+ * from currentPrice to targetPrice, based on historical hourly volatility.
+ *
+ * Formula:  hourlyVol = annualisedVol / sqrt(252 × 6.5)
+ *           estimatedHours = |move%| / hourlyVol%
+ */
+function estimateTimeToTarget(
+  currentPrice: number,
+  targetPrice:  number,
+  annualisedVolPct: number | null,
+): { label: string; moveNeeded: string } {
+  const movePct = ((targetPrice - currentPrice) / currentPrice) * 100;
+  const moveStr = `${movePct >= 0 ? '+' : ''}${movePct.toFixed(2)}%`;
+
+  if (!annualisedVolPct || annualisedVolPct <= 0) {
+    return { label: '—', moveNeeded: moveStr };
+  }
+
+  // Convert annualised vol → hourly vol (6.5 trading hours/day, 252 trading days/year)
+  const hourlyVolPct = annualisedVolPct / Math.sqrt(252 * 6.5);
+  const hours        = Math.abs(movePct) / hourlyVolPct;
+
+  let label: string;
+  if      (hours < 0.33) label = '< 20 min';
+  else if (hours < 0.58) label = '~30 min';
+  else if (hours < 0.83) label = '~45 min';
+  else if (hours < 1.25) label = '~1 hour';
+  else if (hours < 1.75) label = '~1–2 hours';
+  else if (hours < 2.5)  label = '~2 hours';
+  else if (hours < 3.5)  label = '~3 hours';
+  else if (hours < 5.0)  label = '~4 hours';
+  else if (hours < 6.5)  label = '~5–6 hours';
+  else                   label = 'Multi-session';
+
+  return { label, moveNeeded: moveStr };
+}
+
 async function fetchDailyCandles(symbol: string, apiKey: string): Promise<DailyCandles | null> {
   const cacheKey = `candles:daily:${symbol}`;
   const cached   = await redis.get<DailyCandles>(cacheKey);
@@ -330,6 +381,7 @@ function buildSuggestions(
   symbol: string, price: number, changePercent: number,
   direction: string, signalConfidence: number, volTier: string,
   realOptions?: ATMOptions,
+  vol?: number | null,
 ) {
   const move = VOL_MOVE[volTier] ?? VOL_MOVE.medium;
 
@@ -354,6 +406,9 @@ function buildSuggestions(
   const fmtStrike = (strike: number, isReal: boolean) =>
     isReal ? `$${strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(2)}` : `~$${Math.round(strike)} ATM`;
 
+  const callTime = estimateTimeToTarget(price, callExit, vol ?? null);
+  const putTime  = estimateTimeToTarget(price, putExit,  vol ?? null);
+
   return [
     {
       type: 'CALL',
@@ -366,6 +421,7 @@ function buildSuggestions(
       contractTarget: (callContractCost * 1.2).toFixed(2),
       strike: fmtStrike(callStrike, !!realOptions?.call),
       timeframe: expLabel, confidence: parseFloat(callConf.toFixed(2)),
+      estimatedTime: callTime.label, moveNeeded: callTime.moveNeeded,
     },
     {
       type: 'PUT',
@@ -378,6 +434,7 @@ function buildSuggestions(
       contractTarget: (putContractCost * 1.2).toFixed(2),
       strike: fmtStrike(putStrike, !!realOptions?.put),
       timeframe: expLabel, confidence: parseFloat(putConf.toFixed(2)),
+      estimatedTime: putTime.label, moveNeeded: putTime.moveNeeded,
     },
   ];
 }
@@ -403,6 +460,7 @@ export async function GET() {
         : [];
       const macd = candles ? computeMACDLocal(candles.closes)     : null;
       const bb   = candles ? computeBollingerLocal(candles.closes) : null;
+      const vol  = candles ? computeVolatility20(candles.closes)   : null;
       const sig  = runSignal(q.c, q.h, q.l, q.o, q.pc, patterns, macd, bb);
 
       // Fetch real options data if Tradier key is configured
@@ -410,7 +468,7 @@ export async function GET() {
         ? await fetchATMOptionsCached(symbol, q.c, tradierKey)
         : undefined;
 
-      const suggestions = buildSuggestions(symbol, q.c, q.dp, sig.direction, sig.confidence, volTier, realOptions);
+      const suggestions = buildSuggestions(symbol, q.c, q.dp, sig.direction, sig.confidence, volTier, realOptions, vol);
       return {
         symbol, name, type, locked: false,
         price: q.c, dayOpen: q.o, dayHigh: q.h, dayLow: q.l, prevClose: q.pc,
