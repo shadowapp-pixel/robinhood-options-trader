@@ -358,10 +358,12 @@ export async function GET(request: NextRequest) {
 
     // Run signal engine
     const patterns = candles ? detectPatterns(candles.closes, candles.highs, candles.lows) : [];
-    const macd     = candles ? computeMACDLocal(candles.closes)      : null;
-    const bb       = candles ? computeBollingerLocal(candles.closes)  : null;
-    const vol      = candles ? computeVolatility20(candles.closes)    : null;
-    const sig      = runSignal(currentPrice, h, l, o, pc, patterns, macd, bb);
+    const macd      = candles ? computeMACDLocal(candles.closes)      : null;
+    const bb        = candles ? computeBollingerLocal(candles.closes)  : null;
+    const volRaw    = candles ? computeVolatility20(candles.closes)    : null;
+    // Fallback: 28% annualised vol is a reasonable mid-range default for any ticker
+    const vol       = (volRaw !== null && volRaw > 0) ? volRaw : 28;
+    const sig       = runSignal(currentPrice, h, l, o, pc, patterns, macd, bb);
 
     // Fetch real ATM options (if Tradier key configured)
     const tradierKey  = process.env.TRADIER_SANDBOX_KEY;

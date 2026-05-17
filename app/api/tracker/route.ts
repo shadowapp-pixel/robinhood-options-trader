@@ -460,7 +460,10 @@ export async function GET() {
         : [];
       const macd = candles ? computeMACDLocal(candles.closes)     : null;
       const bb   = candles ? computeBollingerLocal(candles.closes) : null;
-      const vol  = candles ? computeVolatility20(candles.closes)   : null;
+      const volRaw = candles ? computeVolatility20(candles.closes) : null;
+      // Fallback: use volTier-based annualised vol estimate when candle data is insufficient
+      const volTierDefault = volTier === 'high' ? 58 : volTier === 'medium' ? 34 : 22;
+      const vol  = (volRaw !== null && volRaw > 0) ? volRaw : volTierDefault;
       const sig  = runSignal(q.c, q.h, q.l, q.o, q.pc, patterns, macd, bb);
 
       // Fetch real options data if Tradier key is configured
