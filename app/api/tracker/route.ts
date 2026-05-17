@@ -37,7 +37,83 @@ async function fetchATMOptionsCached(symbol: string, price: number, token: strin
   return data;
 }
 
+// ─── Daily indicator computation ─────────────────────────────────────────────
+
 interface DailyCandles { closes: number[]; highs: number[]; lows: number[]; }
+
+interface MACDResult {
+  line:          number;
+  signal:        number;
+  histogram:     number;
+  prevHistogram: number; // previous candle's histogram — detects expanding vs shrinking momentum
+}
+
+interface BollingerResult {
+  upper:     number;
+  mid:       number;
+  lower:     number;
+  percentB:  number; // 0=at lower band, 0.5=midline, 1=at upper band, >1 or <0 = outside band
+  bandwidth: number; // (upper−lower)/mid × 100 — squeeze detector
+}
+
+function emaLocal(vals: number[], period: number): number[] {
+  if (vals.length < period) return [];
+  const k    = 2 / (period + 1);
+  const seed = vals.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  const out  = [seed];
+  for (let i = period; i < vals.length; i++) {
+    out.push(vals[i] * k + out[out.length - 1] * (1 - k));
+  }
+  return out;
+}
+
+/**
+ * MACD 12/26/9 on daily closes.
+ * Conservative: also captures previous histogram so we can detect
+ * whether momentum is BUILDING (expanding histogram) vs stalling.
+ */
+function computeMACDLocal(closes: number[]): MACDResult | null {
+  if (closes.length < 36) return null; // 26 for MACD + 9 for signal + 1 for prev
+  const ema12 = emaLocal(closes, 12);
+  const ema26 = emaLocal(closes, 26);
+  const overlap  = ema26.length;
+  const macdLine = ema12.slice(ema12.length - overlap).map((v, i) => v - ema26[i]);
+  const sigLine  = emaLocal(macdLine, 9);
+  if (macdLine.length < 2 || sigLine.length < 2) return null;
+
+  const lastMacd = macdLine[macdLine.length - 1];
+  const lastSig  = sigLine[sigLine.length - 1];
+  const prevMacd = macdLine[macdLine.length - 2];
+  const prevSig  = sigLine[sigLine.length - 2];
+
+  return {
+    line:          lastMacd,
+    signal:        lastSig,
+    histogram:     lastMacd - lastSig,
+    prevHistogram: prevMacd - prevSig,
+  };
+}
+
+/**
+ * Bollinger Bands 20-period, 2.0σ (standard — provides reliable extreme readings).
+ * Returns %B (position within band) and bandwidth (squeeze indicator).
+ */
+function computeBollingerLocal(closes: number[], period = 20): BollingerResult | null {
+  if (closes.length < period) return null;
+  const slice = closes.slice(-period);
+  const mean  = slice.reduce((a, b) => a + b, 0) / period;
+  const std   = Math.sqrt(slice.reduce((a, b) => a + (b - mean) ** 2, 0) / period);
+  const upper = mean + 2.0 * std;
+  const lower = mean - 2.0 * std;
+  const cur   = closes[closes.length - 1];
+  return {
+    upper,
+    mid:       mean,
+    lower,
+    percentB:  upper !== lower ? (cur - lower) / (upper - lower) : 0.5,
+    bandwidth: mean > 0 ? ((upper - lower) / mean) * 100 : 0,
+  };
+}
 
 async function fetchDailyCandles(symbol: string, apiKey: string): Promise<DailyCandles | null> {
   const cacheKey = `candles:daily:${symbol}`;
@@ -81,6 +157,8 @@ async function fetchQuote(symbol: string, apiKey: string): Promise<Quote> {
 function runSignal(
   c: number, h: number, l: number, o: number, pc: number,
   patterns: PatternResult[] = [],
+  macd: MACDResult | null = null,
+  bb: BollingerResult | null = null,
 ) {
   const vwap         = (h + l + c) / 3;
   const ema8proxy    = o;
@@ -101,27 +179,89 @@ function runSignal(
   const bearishBias = c < vwap && c < ema8proxy;
 
   type Condition = { label: string; pass: boolean };
-  const conditions: Condition[] = [];
+  const intradayConds:  Condition[] = [];
+  const technicalConds: Condition[] = []; // MACD + Bollinger (daily)
+  const patternConds:   Condition[] = []; // Chart patterns (daily)
   let direction: 'CALL' | 'PUT' | 'NEUTRAL' = 'NEUTRAL';
 
   if (bullishBias) {
     direction = 'CALL';
-    conditions.push({ label: 'Price above VWAP',                          pass: true });
-    conditions.push({ label: 'Price above open (intraday uptrend)',        pass: true });
-    conditions.push({ label: 'Range position ≤ 60 — not extended',        pass: rangePos <= 60 });
-    conditions.push({ label: 'Within 1.5% of VWAP',                       pass: distFromVWAP < 1.5 });
-    conditions.push({ label: 'Green candle with strong body (conviction)', pass: greenBody && bodyRatio >= 0.45 });
-    conditions.push({ label: 'No bearish gap-down open',                   pass: !gapDown });
+    intradayConds.push({ label: 'Price above VWAP',                          pass: true });
+    intradayConds.push({ label: 'Price above open (intraday uptrend)',        pass: true });
+    intradayConds.push({ label: 'Range position ≤ 60 — not extended',        pass: rangePos <= 60 });
+    intradayConds.push({ label: 'Within 1.5% of VWAP',                       pass: distFromVWAP < 1.5 });
+    intradayConds.push({ label: 'Green candle with strong body (conviction)', pass: greenBody && bodyRatio >= 0.45 });
+    intradayConds.push({ label: 'No bearish gap-down open',                   pass: !gapDown });
   } else if (bearishBias) {
     direction = 'PUT';
-    conditions.push({ label: 'Price below VWAP',                          pass: true });
-    conditions.push({ label: 'Price below open (intraday downtrend)',      pass: true });
-    conditions.push({ label: 'Range position ≥ 40 — not extended',        pass: rangePos >= 40 });
-    conditions.push({ label: 'Within 1.5% of VWAP',                       pass: distFromVWAP < 1.5 });
-    conditions.push({ label: 'Red candle with strong body (conviction)',   pass: redBody && bodyRatio >= 0.45 });
-    conditions.push({ label: 'No bullish gap-up open',                     pass: !gapUp });
+    intradayConds.push({ label: 'Price below VWAP',                          pass: true });
+    intradayConds.push({ label: 'Price below open (intraday downtrend)',      pass: true });
+    intradayConds.push({ label: 'Range position ≥ 40 — not extended',        pass: rangePos >= 40 });
+    intradayConds.push({ label: 'Within 1.5% of VWAP',                       pass: distFromVWAP < 1.5 });
+    intradayConds.push({ label: 'Red candle with strong body (conviction)',   pass: redBody && bodyRatio >= 0.45 });
+    intradayConds.push({ label: 'No bullish gap-up open',                     pass: !gapUp });
   } else {
-    conditions.push({ label: 'No clear intraday bias', pass: false });
+    intradayConds.push({ label: 'No clear intraday bias', pass: false });
+  }
+
+  // ── MACD crossover + momentum expansion (daily) ───────────────────────────
+  // Conservative: require min 0.1% of price spread to filter noise
+  const minMACDSpread = c * 0.001;
+  if (macd && direction !== 'NEUTRAL') {
+    if (direction === 'CALL') {
+      technicalConds.push({
+        label: 'MACD bullish crossover (daily)',
+        pass:  macd.line > macd.signal && (macd.line - macd.signal) >= minMACDSpread,
+      });
+      technicalConds.push({
+        label: 'MACD momentum building (histogram expanding)',
+        pass:  macd.histogram > macd.prevHistogram,
+      });
+    } else {
+      technicalConds.push({
+        label: 'MACD bearish crossover (daily)',
+        pass:  macd.line < macd.signal && (macd.signal - macd.line) >= minMACDSpread,
+      });
+      technicalConds.push({
+        label: 'MACD momentum building (histogram expanding)',
+        pass:  macd.histogram < macd.prevHistogram, // more negative = bearish expansion
+      });
+    }
+  }
+
+  // ── Bollinger Band position (daily) ───────────────────────────────────────
+  // Conservative: bandwidth ≥ 4% to avoid low-vol squeeze whipsaws
+  if (bb && direction !== 'NEUTRAL') {
+    const noSqueeze = bb.bandwidth >= 4.0;
+    if (direction === 'CALL') {
+      // Avoid entering when price is already overbought (> 60% of band)
+      technicalConds.push({
+        label: 'Bollinger %B not overbought (< 60%)',
+        pass:  bb.percentB < 0.60,
+      });
+      technicalConds.push({
+        label: 'Bollinger bands wide — no squeeze',
+        pass:  noSqueeze,
+      });
+      // Bonus: deeply oversold = high-probability mean-reversion entry
+      if (bb.percentB < 0.30) {
+        technicalConds.push({ label: 'Bollinger %B oversold (< 30%) — high-prob entry', pass: true });
+      }
+    } else {
+      // Avoid entering when price is already oversold (< 40% of band)
+      technicalConds.push({
+        label: 'Bollinger %B not oversold (> 40%)',
+        pass:  bb.percentB > 0.40,
+      });
+      technicalConds.push({
+        label: 'Bollinger bands wide — no squeeze',
+        pass:  noSqueeze,
+      });
+      // Bonus: deeply overbought = high-probability mean-reversion entry
+      if (bb.percentB > 0.70) {
+        technicalConds.push({ label: 'Bollinger %B overbought (> 70%) — high-prob entry', pass: true });
+      }
+    }
   }
 
   // ── Chart pattern overlay (from daily candles) ────────────────────────────
@@ -132,41 +272,47 @@ function runSignal(
 
   if (direction === 'CALL') {
     if (topBull) {
-      conditions.push({ label: `Bullish chart pattern: ${topBull.name}`, pass: true });
+      patternConds.push({ label: `Bullish chart pattern: ${topBull.name}`, pass: true });
     }
     if (topBear && topBear.type === 'bearish-reversal') {
-      conditions.push({ label: `Bearish reversal warning: ${topBear.name}`, pass: false });
+      patternConds.push({ label: `Bearish reversal warning: ${topBear.name}`, pass: false });
     }
   } else if (direction === 'PUT') {
     if (topBear) {
-      conditions.push({ label: `Bearish chart pattern: ${topBear.name}`, pass: true });
+      patternConds.push({ label: `Bearish chart pattern: ${topBear.name}`, pass: true });
     }
     if (topBull && topBull.type === 'bullish-reversal') {
-      conditions.push({ label: `Bullish reversal warning: ${topBull.name}`, pass: false });
+      patternConds.push({ label: `Bullish reversal warning: ${topBull.name}`, pass: false });
     }
   }
 
-  // ── Confidence: 70% intraday, 30% pattern bias ────────────────────────────
-  const baseConds    = conditions.filter(x => !x.label.includes('pattern') && !x.label.includes('warning'));
-  const patternConds = conditions.filter(x => x.label.includes('pattern') || x.label.includes('warning'));
+  // ── Three-tier confidence: 50% intraday / 25% MACD+BB / 25% patterns ─────
+  const intradayScore = intradayConds.length > 0
+    ? intradayConds.filter(x => x.pass).length / intradayConds.length
+    : 0;
 
-  const basePass    = baseConds.filter(x => x.pass).length;
-  const patternPass = patternConds.filter(x => x.pass).length;
+  // When daily data is unavailable, fall back to intraday score so we don't penalise
+  const techScore = technicalConds.length > 0
+    ? technicalConds.filter(x => x.pass).length / technicalConds.length
+    : intradayScore;
 
-  const baseConf    = baseConds.length    > 0 ? basePass    / baseConds.length    : 0;
-  const patternConf = patternConds.length > 0 ? patternPass / patternConds.length : baseConf;
+  const bias = patternBias(patterns); // -1..+1
+  const patScore = patternConds.length > 0
+    ? patternConds.filter(x => x.pass).length / patternConds.length
+    : intradayScore;
 
-  // Blend: if no patterns detected, use pure intraday; otherwise blend 70/30
-  const bias       = patternBias(patterns); // -1..+1
-  const blendRatio = patterns.length > 0 ? 0.30 : 0;
-  const blended    = baseConf * (1 - blendRatio) + patternConf * blendRatio;
-
-  // Small extra boost when pattern bias strongly agrees with intraday direction
+  // Small alignment bonus when pattern bias strongly agrees with intraday direction
   const alignBonus = (direction === 'CALL' && bias > 0.5) || (direction === 'PUT' && bias < -0.5) ? 0.05 : 0;
 
-  const confidence = Math.min(100, Math.round((blended + alignBonus) * 100));
-  const passCount  = conditions.filter(x => x.pass).length;
-  const allPass    = passCount === conditions.length && conditions.length > 1;
+  const confidence = Math.min(100, Math.round(
+    (intradayScore * 0.50 + techScore * 0.25 + patScore * 0.25 + alignBonus) * 100,
+  ));
+
+  // Prime signal: ALL intraday conditions must pass AND blended confidence ≥ 80
+  const allIntradayPass = intradayConds.length > 1 && intradayConds.every(x => x.pass);
+  const allPass = allIntradayPass && confidence >= 80;
+
+  const conditions = [...intradayConds, ...technicalConds, ...patternConds];
 
   return {
     signal: allPass ? direction : ('NEUTRAL' as const),
@@ -176,7 +322,7 @@ function runSignal(
       ema8proxy: parseFloat(ema8proxy.toFixed(4)),
       rangePos:  parseFloat(rangePos.toFixed(1)),
     },
-    patterns,  // expose detected patterns in the API response
+    patterns,
   };
 }
 
@@ -255,7 +401,9 @@ export async function GET() {
       const patterns = candles
         ? detectPatterns(candles.closes, candles.highs, candles.lows)
         : [];
-      const sig = runSignal(q.c, q.h, q.l, q.o, q.pc, patterns);
+      const macd = candles ? computeMACDLocal(candles.closes)     : null;
+      const bb   = candles ? computeBollingerLocal(candles.closes) : null;
+      const sig  = runSignal(q.c, q.h, q.l, q.o, q.pc, patterns, macd, bb);
 
       // Fetch real options data if Tradier key is configured
       const realOptions = tradierKey
