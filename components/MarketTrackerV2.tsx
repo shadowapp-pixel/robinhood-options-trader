@@ -326,7 +326,7 @@ function LockedCard({ entry }: { entry: TrackerEntry }) {
 
 // ─── Ticker card ──────────────────────────────────────────────────────────────
 
-function TickerCard({ entry, vixLevel, isPro }: { entry: TrackerEntry; vixLevel: number | null; isPro: boolean }) {
+function TickerCard({ entry, vixLevel }: { entry: TrackerEntry; vixLevel: number | null }) {
   const [expanded,  setExpanded]  = useState(false);
   const [showChart, setShowChart] = useState(false);
 
@@ -509,7 +509,6 @@ export default function MarketTracker() {
   const [loading, setLoading]     = useState(true);
   const [countdown, setCountdown] = useState(REFRESH_MS / 1000);
   const [toasts, setToasts]       = useState<AlertToast[]>([]);
-  const [isPro, setIsPro]         = useState(false);
   const prevPrimeKeys             = useRef<Set<string>>(new Set());
   const isFirstFetch              = useRef(true);
   const toastCounter              = useRef(0);
@@ -523,7 +522,6 @@ export default function MarketTracker() {
       const json: TrackerResponse = await fetch('/api/tracker').then(r => r.json());
       setData(json.data);
       setTimestamp(json.timestamp);
-      setIsPro(json.isPro);
 
       const currentPrime = json.data.filter(d => d.allPass && d.signal !== 'NEUTRAL' && d.price !== null);
 
@@ -647,7 +645,7 @@ export default function MarketTracker() {
           <div className="flex-1 h-px bg-[#2a2a2a]" />
         </div>
         <div className="space-y-2">
-          {mag7.map(e => <TickerCard key={e.symbol} entry={e} vixLevel={vixLevel} isPro={isPro} />)}
+          {mag7.map(e => <TickerCard key={e.symbol} entry={e} vixLevel={vixLevel} />)}
         </div>
       </section>
 
@@ -658,7 +656,7 @@ export default function MarketTracker() {
           <div className="flex-1 h-px bg-[#2a2a2a]" />
         </div>
         <div className="space-y-2">
-          {etfs.map(e => <TickerCard key={e.symbol} entry={e} vixLevel={vixLevel} isPro={isPro} />)}
+          {etfs.map(e => <TickerCard key={e.symbol} entry={e} vixLevel={vixLevel} />)}
         </div>
       </section>
 
@@ -669,7 +667,7 @@ export default function MarketTracker() {
           <div className="flex-1 h-px bg-[#2a2a2a]" />
         </div>
         <div className="space-y-2">
-          {indices.map(e => <TickerCard key={e.symbol} entry={e} vixLevel={vixLevel} isPro={isPro} />)}
+          {indices.map(e => <TickerCard key={e.symbol} entry={e} vixLevel={vixLevel} />)}
         </div>
       </section>
     </div>

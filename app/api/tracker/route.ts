@@ -1,6 +1,4 @@
-import { currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import { isProUser } from '@/lib/auth';
 import { redis } from '@/lib/redis';
 import { getATMOptions, type ATMOptions } from '@/lib/tradier';
 
@@ -162,18 +160,12 @@ export async function GET() {
     return NextResponse.json({ error: 'FINNHUB_API_KEY not configured' }, { status: 500 });
   }
 
-  // ── Subscription check (Stripe subscriber OR admin email) ────────────────
-  const user  = await currentUser();
-  const isPro = isProUser(user);
-
-  const active = WATCHLIST.filter(w => isPro || !w.pro);
-  const locked = WATCHLIST.filter(w => !isPro && w.pro);
-
+  // ── Market Tracker is fully public — no auth check needed ──────────────────
   const tradierKey = process.env.TRADIER_SANDBOX_KEY;
 
-  // ── Fetch live quotes for active tickers ──────────────────────────────────
+  // ── Fetch live quotes for all tickers ────────────────────────────────────
   const settled = await Promise.allSettled(
-    active.map(async ({ symbol, name, type, volTier }) => {
+    WATCHLIST.map(async ({ symbol, name, type, volTier }) => {
       const q = await fetchQuote(symbol, apiKey);
       const sig = runSignal(q.c, q.h, q.l, q.o);
 
@@ -194,7 +186,7 @@ export async function GET() {
     })
   );
 
-  const activeData = active.map(({ symbol, name, type }, i) => {
+  const allData = WATCHLIST.map(({ symbol, name, type }, i) => {
     const result = settled[i];
     if (result.status === 'fulfilled') return result.value;
     return {
@@ -207,20 +199,5 @@ export async function GET() {
     };
   });
 
-  // ── Locked stubs (no price data) ──────────────────────────────────────────
-  const lockedData = locked.map(({ symbol, name, type }) => ({
-    symbol, name, type, locked: true,
-    price: null, dayOpen: null, dayHigh: null, dayLow: null, prevClose: null,
-    changePercent: null, indicators: null,
-    signal: 'NEUTRAL', direction: 'NEUTRAL',
-    conditions: [], allPass: false, confidence: 0, suggestions: [], error: null,
-  }));
-
-  // ── Restore original watchlist order ──────────────────────────────────────
-  const allData = WATCHLIST.map(w =>
-    activeData.find(d => d.symbol === w.symbol) ??
-    lockedData.find(d => d.symbol === w.symbol)!
-  );
-
-  return NextResponse.json({ data: allData, timestamp: new Date().toISOString(), isPro });
+  return NextResponse.json({ data: allData, timestamp: new Date().toISOString(), isPro: true });
 }
