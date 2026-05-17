@@ -14,6 +14,7 @@ type Tab = 'tracker' | 'search' | 'favorites' | 'ai';
 /* ─── Trade Search types ─────────────────────────────────────────────────── */
 
 interface Suggestion {
+  type?: string;
   title: string;
   description: string;
   entryPrice: string;
@@ -26,12 +27,27 @@ interface Suggestion {
   confidence: number;
 }
 
+interface SearchCondition  { label: string; pass: boolean; }
+interface SearchPattern    { name: string; type: string; confidence: number; description: string; }
+interface SearchIndicators { vwap: number; ema8proxy: number; rangePos: number; }
+
 interface StockData {
   symbol: string;
   currentPrice: string;
   change: string;
   changePercent: string;
+  dayHigh?: string;
+  dayLow?: string;
+  // Signal analysis (same as Market Tracker)
+  signal:     'CALL' | 'PUT' | 'NEUTRAL';
+  direction:  'CALL' | 'PUT' | 'NEUTRAL';
+  confidence: number;
+  allPass:    boolean;
+  conditions: SearchCondition[];
+  indicators: SearchIndicators;
+  patterns:   SearchPattern[];
   suggestions: Suggestion[];
+  usingRealOptions?: boolean;
 }
 
 /* ─── Contract Tracker types ─────────────────────────────────────────────── */
@@ -735,6 +751,141 @@ export default function Home() {
               </div>
             )}
 
+            {/* ── Signal Analysis panel (mirrors Market Tracker expanded view) ── */}
+            {stockData && (
+              <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl overflow-hidden">
+
+                {/* Signal header */}
+                <div className="px-6 py-4 border-b border-[#2a2a2a] flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold mb-1">Signal Analysis</p>
+                    <div className="flex items-center gap-3">
+                      {/* Direction badge */}
+                      <span className={`text-xs font-black px-3 py-1 rounded-lg border ${
+                        stockData.signal === 'CALL'    ? 'bg-[#00C805]/15 border-[#00C805]/40 text-[#00C805]' :
+                        stockData.signal === 'PUT'     ? 'bg-[#EF4444]/15 border-[#EF4444]/40 text-[#EF4444]' :
+                                                        'bg-[#6b6b6b]/15 border-[#6b6b6b]/30 text-[#6b6b6b]'
+                      }`}>
+                        {stockData.signal}
+                      </span>
+                      {/* Confidence */}
+                      <span className={`text-2xl font-black font-mono ${
+                        stockData.signal === 'CALL' ? 'text-[#00C805]' :
+                        stockData.signal === 'PUT'  ? 'text-[#EF4444]' : 'text-[#6b6b6b]'
+                      }`}>
+                        {stockData.confidence}%
+                      </span>
+                      {stockData.allPass && (
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#00C805]/15 text-[#00C805] border border-[#00C805]/30 tracking-widest animate-pulse">
+                          ● PRIME SIGNAL
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Key indicators */}
+                  <div className="flex items-center gap-6 text-right">
+                    <div>
+                      <p className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold">VWAP</p>
+                      <p className="text-sm font-bold font-mono text-white mt-0.5">${stockData.indicators.vwap.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold">Range Pos</p>
+                      <p className={`text-sm font-bold font-mono mt-0.5 ${
+                        stockData.indicators.rangePos > 60 ? 'text-[#00C805]' :
+                        stockData.indicators.rangePos < 40 ? 'text-[#EF4444]' : 'text-amber-400'
+                      }`}>
+                        {stockData.indicators.rangePos.toFixed(0)}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Confidence bar */}
+                <div className="px-6 py-3 border-b border-[#2a2a2a]">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold">Signal Confidence</span>
+                    <span className="text-[10px] text-[#6b6b6b] font-semibold">
+                      {stockData.confidence >= 80 ? 'High conviction' : stockData.confidence >= 60 ? 'Moderate' : 'Low conviction'}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-[#1e1e1e] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        stockData.confidence >= 80 ? 'bg-[#00C805]' : stockData.confidence >= 60 ? 'bg-amber-500' : 'bg-[#EF4444]'
+                      }`}
+                      style={{ width: `${stockData.confidence}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Range bar */}
+                <div className="px-6 py-3 border-b border-[#2a2a2a]">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] text-[#6b6b6b] font-mono">${stockData.dayLow ?? stockData.currentPrice}</span>
+                    <span className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold">Day Range</span>
+                    <span className="text-[10px] text-[#6b6b6b] font-mono">${stockData.dayHigh ?? stockData.currentPrice}</span>
+                  </div>
+                  <div className="relative h-1.5 bg-[#1e1e1e] rounded-full overflow-hidden">
+                    <div
+                      className="absolute left-0 top-0 h-full bg-gradient-to-r from-[#EF4444] via-amber-400 to-[#00C805] rounded-full"
+                      style={{ width: `${stockData.indicators.rangePos}%` }}
+                    />
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white border border-black shadow"
+                      style={{ left: `calc(${stockData.indicators.rangePos}% - 4px)` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Signal conditions checklist */}
+                <div className="px-6 py-4 border-b border-[#2a2a2a]">
+                  <p className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold mb-2">Signal Conditions</p>
+                  <div className="rounded-xl bg-[#111111] border border-[#2a2a2a] divide-y divide-[#222222]">
+                    {stockData.conditions.map((cond, i) => (
+                      <div key={i} className="flex items-center gap-3 px-3 py-2">
+                        <span className={`text-xs font-bold w-4 ${cond.pass ? 'text-[#00C805]' : 'text-[#EF4444]'}`}>
+                          {cond.pass ? '✓' : '✗'}
+                        </span>
+                        <span className={`text-xs ${cond.pass ? 'text-[#c4c4c4]' : 'text-[#4a4a4a]'}`}>{cond.label}</span>
+                        <span className={`ml-auto text-xs font-semibold ${cond.pass ? 'text-[#00C805]' : 'text-[#EF4444]'}`}>
+                          {cond.pass ? 'PASS' : 'FAIL'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Detected chart patterns */}
+                {stockData.patterns.length > 0 && (
+                  <div className="px-6 py-4">
+                    <p className="text-[10px] text-[#6b6b6b] uppercase tracking-widest font-semibold mb-2">
+                      Detected Chart Patterns — {stockData.patterns.length} found
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {stockData.patterns.map((p, i) => {
+                        const isBull = p.type.startsWith('bullish');
+                        return (
+                          <div
+                            key={i}
+                            className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
+                              isBull
+                                ? 'bg-[#00C805]/10 border-[#00C805]/30 text-[#00C805]'
+                                : 'bg-[#EF4444]/10 border-[#EF4444]/30 text-[#EF4444]'
+                            }`}
+                            title={p.description}
+                          >
+                            {isBull ? '▲' : '▼'} {p.name}
+                            <span className="ml-1.5 opacity-60">{p.confidence}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ── Suggestion cards ── */}
             {stockData && stockData.suggestions.length > 0 && (
               <div className="space-y-4">
@@ -747,12 +898,12 @@ export default function Home() {
                 </div>
 
                 {stockData.suggestions.map((s, i) => {
-                  const isCall    = s.title.toLowerCase().includes('call');
-                  const isPut     = s.title.toLowerCase().includes('put');
+                  const typeBadge = (s.type ?? (s.title.toLowerCase().includes('call') ? 'CALL' : s.title.toLowerCase().includes('put') ? 'PUT' : 'STRADDLE')) as 'CALL' | 'PUT' | 'STRADDLE';
+                  const isCall    = typeBadge === 'CALL';
+                  const isPut     = typeBadge === 'PUT';
                   const acBorder  = isCall ? 'border-[#00C805]/30' : isPut ? 'border-[#EF4444]/30' : 'border-[#60a5fa]/30';
                   const acText    = isCall ? 'text-[#00C805]'      : isPut ? 'text-[#EF4444]'      : 'text-[#60a5fa]';
                   const acBg      = isCall ? 'bg-[#00C805]/10'     : isPut ? 'bg-[#EF4444]/10'     : 'bg-[#60a5fa]/10';
-                  const typeBadge = isCall ? 'CALL'                : isPut ? 'PUT'                  : 'STRADDLE';
                   const confColor = s.confidence >= 75 ? 'bg-[#00C805]' : s.confidence >= 60 ? 'bg-amber-500' : 'bg-[#EF4444]';
 
                   /* Check if this suggestion is already actively tracked */
