@@ -13,7 +13,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import type { ComputedIndicators, FundamentalsData, NewsItem, SentimentData } from '@/lib/finnhub-analysis';
+import type { ComputedIndicators, FundamentalsData, NewsItem, SentimentData, PatternResult } from '@/lib/finnhub-analysis';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -154,6 +154,7 @@ export async function runTechnicalAgent(
   changePercent: number,
   indicators: ComputedIndicators | null,
   recentCloses: number[],
+  patterns: PatternResult[] = [],
 ): Promise<TechnicalAnalysis> {
   const fallback: TechnicalAnalysis = {
     trend: 'neutral', rsiSignal: 'neutral', macdSignal: 'neutral',
@@ -163,6 +164,12 @@ export async function runTechnicalAgent(
   };
 
   const ind = indicators;
+  const patternLines = patterns.length > 0
+    ? patterns.slice(0, 5).map(p =>
+        `  • ${p.name} [${p.type}] — ${p.confidence}% confidence: ${p.description}`
+      ).join('\n')
+    : '  None detected in the 90-day candle series.';
+
   const userContent = `
 Symbol: ${symbol} | Price: $${price.toFixed(2)} | Change: ${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%
 
@@ -173,10 +180,17 @@ Bollinger Upper: $${n(ind?.bollingerUpper)} | Mid: $${n(ind?.bollingerMid)} | Lo
 SMA20: $${n(ind?.sma20)} | SMA50: $${n(ind?.sma50)}
 EMA12: $${n(ind?.ema12)} | EMA26: $${n(ind?.ema26)}
 Annualised Volatility (20d): ${n(ind?.volatility20)}%
-
 Recent 5 Closes: ${recentCloses.slice(-5).map(c => `$${c.toFixed(2)}`).join(', ')}
 
-Analyse these indicators and return ONLY valid JSON (no markdown) with this exact schema:
+CHART PATTERNS DETECTED (90-day daily candles):
+${patternLines}
+
+Incorporate the chart patterns alongside the technical indicators in your analysis.
+Bullish-reversal / bullish-continuation patterns support a bullish view;
+bearish-reversal / bearish-continuation patterns support a bearish view.
+Conflicting patterns should be noted in bearPoints/bullPoints accordingly.
+
+Return ONLY valid JSON (no markdown) with this exact schema:
 {
   "trend": "bullish"|"bearish"|"neutral",
   "rsiSignal": "overbought"|"oversold"|"neutral",

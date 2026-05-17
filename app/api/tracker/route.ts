@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 import { getATMOptions, type ATMOptions } from '@/lib/tradier';
+import { detectPatterns, patternBias, type PatternResult } from '@/lib/pattern-detection';
 
-const CACHE_TTL         = 28;   // seconds — slightly under the 30s client refresh interval
-const TRADIER_CACHE_TTL = 60;   // Tradier data is ~15 min delayed; 60 s extra cache is negligible
+const CACHE_TTL         = 28;    // seconds — slightly under the 30s client refresh interval
+const TRADIER_CACHE_TTL = 60;    // Tradier data is ~15 min delayed; 60 s extra cache is negligible
+const CANDLE_CACHE_TTL  = 3_600; // 1 hour — daily candles change once per day
 
 const WATCHLIST = [
   { symbol: 'AAPL',  name: 'Apple',           type: 'mag7',  volTier: 'low',    pro: false },
@@ -35,6 +37,29 @@ async function fetchATMOptionsCached(symbol: string, price: number, token: strin
   return data;
 }
 
+interface DailyCandles { closes: number[]; highs: number[]; lows: number[]; }
+
+async function fetchDailyCandles(symbol: string, apiKey: string): Promise<DailyCandles | null> {
+  const cacheKey = `candles:daily:${symbol}`;
+  const cached   = await redis.get<DailyCandles>(cacheKey);
+  if (cached) return cached;
+
+  const now  = Math.floor(Date.now() / 1000);
+  const from = now - 60 * 86_400; // 60 days of daily candles
+  try {
+    const res = await fetch(
+      `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${now}&token=${apiKey}`,
+      { cache: 'no-store' },
+    );
+    if (!res.ok) return null;
+    const d = await res.json() as { s: string; c?: number[]; h?: number[]; l?: number[] };
+    if (d.s !== 'ok' || !d.c?.length) return null;
+    const candles: DailyCandles = { closes: d.c, highs: d.h!, lows: d.l! };
+    await redis.set(cacheKey, candles, { ex: CANDLE_CACHE_TTL });
+    return candles;
+  } catch { return null; }
+}
+
 async function fetchQuote(symbol: string, apiKey: string): Promise<Quote> {
   const cacheKey = `quote:${symbol}`;
 
@@ -53,12 +78,24 @@ async function fetchQuote(symbol: string, apiKey: string): Promise<Quote> {
   return data;
 }
 
-function runSignal(c: number, h: number, l: number, o: number) {
+function runSignal(
+  c: number, h: number, l: number, o: number, pc: number,
+  patterns: PatternResult[] = [],
+) {
   const vwap         = (h + l + c) / 3;
   const ema8proxy    = o;
   const rangeSpan    = h - l;
   const rangePos     = rangeSpan > 0 ? ((c - l) / rangeSpan) * 100 : 50;
   const distFromVWAP = Math.abs((c - vwap) / vwap) * 100;
+
+  // ── Intraday candle analysis ──────────────────────────────────────────────
+  const gapUp      = pc > 0 && o > pc * 1.005;
+  const gapDown    = pc > 0 && o < pc * 0.995;
+  const bodySize   = Math.abs(c - o);
+  const totalRange = Math.max(h - l, 0.01);
+  const bodyRatio  = bodySize / totalRange; // 0–1; >0.5 = strong conviction candle
+  const greenBody  = c > o;
+  const redBody    = c < o;
 
   const bullishBias = c > vwap && c > ema8proxy;
   const bearishBias = c < vwap && c < ema8proxy;
@@ -69,23 +106,67 @@ function runSignal(c: number, h: number, l: number, o: number) {
 
   if (bullishBias) {
     direction = 'CALL';
-    conditions.push({ label: 'Price above VWAP', pass: true });
-    conditions.push({ label: 'Price above open (intraday uptrend)', pass: true });
-    conditions.push({ label: 'Range position < 30 — intraday pullback', pass: rangePos < 30 });
-    conditions.push({ label: 'Within 1.5% of VWAP', pass: distFromVWAP < 1.5 });
+    conditions.push({ label: 'Price above VWAP',                          pass: true });
+    conditions.push({ label: 'Price above open (intraday uptrend)',        pass: true });
+    conditions.push({ label: 'Range position ≤ 60 — not extended',        pass: rangePos <= 60 });
+    conditions.push({ label: 'Within 1.5% of VWAP',                       pass: distFromVWAP < 1.5 });
+    conditions.push({ label: 'Green candle with strong body (conviction)', pass: greenBody && bodyRatio >= 0.45 });
+    conditions.push({ label: 'No bearish gap-down open',                   pass: !gapDown });
   } else if (bearishBias) {
     direction = 'PUT';
-    conditions.push({ label: 'Price below VWAP', pass: true });
-    conditions.push({ label: 'Price below open (intraday downtrend)', pass: true });
-    conditions.push({ label: 'Range position > 70 — intraday extension', pass: rangePos > 70 });
-    conditions.push({ label: 'Within 1.5% of VWAP', pass: distFromVWAP < 1.5 });
+    conditions.push({ label: 'Price below VWAP',                          pass: true });
+    conditions.push({ label: 'Price below open (intraday downtrend)',      pass: true });
+    conditions.push({ label: 'Range position ≥ 40 — not extended',        pass: rangePos >= 40 });
+    conditions.push({ label: 'Within 1.5% of VWAP',                       pass: distFromVWAP < 1.5 });
+    conditions.push({ label: 'Red candle with strong body (conviction)',   pass: redBody && bodyRatio >= 0.45 });
+    conditions.push({ label: 'No bullish gap-up open',                     pass: !gapUp });
   } else {
     conditions.push({ label: 'No clear intraday bias', pass: false });
   }
 
-  const passCount  = conditions.filter(c => c.pass).length;
-  const allPass    = passCount === conditions.length;
-  const confidence = Math.round((passCount / Math.max(conditions.length, 1)) * 100);
+  // ── Chart pattern overlay (from daily candles) ────────────────────────────
+  const bullPatterns = patterns.filter(p => p.type.startsWith('bullish'));
+  const bearPatterns = patterns.filter(p => p.type.startsWith('bearish'));
+  const topBull = bullPatterns[0];
+  const topBear = bearPatterns[0];
+
+  if (direction === 'CALL') {
+    if (topBull) {
+      conditions.push({ label: `Bullish chart pattern: ${topBull.name}`, pass: true });
+    }
+    if (topBear && topBear.type === 'bearish-reversal') {
+      conditions.push({ label: `Bearish reversal warning: ${topBear.name}`, pass: false });
+    }
+  } else if (direction === 'PUT') {
+    if (topBear) {
+      conditions.push({ label: `Bearish chart pattern: ${topBear.name}`, pass: true });
+    }
+    if (topBull && topBull.type === 'bullish-reversal') {
+      conditions.push({ label: `Bullish reversal warning: ${topBull.name}`, pass: false });
+    }
+  }
+
+  // ── Confidence: 70% intraday, 30% pattern bias ────────────────────────────
+  const baseConds    = conditions.filter(x => !x.label.includes('pattern') && !x.label.includes('warning'));
+  const patternConds = conditions.filter(x => x.label.includes('pattern') || x.label.includes('warning'));
+
+  const basePass    = baseConds.filter(x => x.pass).length;
+  const patternPass = patternConds.filter(x => x.pass).length;
+
+  const baseConf    = baseConds.length    > 0 ? basePass    / baseConds.length    : 0;
+  const patternConf = patternConds.length > 0 ? patternPass / patternConds.length : baseConf;
+
+  // Blend: if no patterns detected, use pure intraday; otherwise blend 70/30
+  const bias       = patternBias(patterns); // -1..+1
+  const blendRatio = patterns.length > 0 ? 0.30 : 0;
+  const blended    = baseConf * (1 - blendRatio) + patternConf * blendRatio;
+
+  // Small extra boost when pattern bias strongly agrees with intraday direction
+  const alignBonus = (direction === 'CALL' && bias > 0.5) || (direction === 'PUT' && bias < -0.5) ? 0.05 : 0;
+
+  const confidence = Math.min(100, Math.round((blended + alignBonus) * 100));
+  const passCount  = conditions.filter(x => x.pass).length;
+  const allPass    = passCount === conditions.length && conditions.length > 1;
 
   return {
     signal: allPass ? direction : ('NEUTRAL' as const),
@@ -95,6 +176,7 @@ function runSignal(c: number, h: number, l: number, o: number) {
       ema8proxy: parseFloat(ema8proxy.toFixed(4)),
       rangePos:  parseFloat(rangePos.toFixed(1)),
     },
+    patterns,  // expose detected patterns in the API response
   };
 }
 
@@ -163,11 +245,17 @@ export async function GET() {
   // ── Market Tracker is fully public — no auth check needed ──────────────────
   const tradierKey = process.env.TRADIER_SANDBOX_KEY;
 
-  // ── Fetch live quotes for all tickers ────────────────────────────────────
+  // ── Fetch live quotes + daily candles for all tickers ────────────────────
   const settled = await Promise.allSettled(
     WATCHLIST.map(async ({ symbol, name, type, volTier }) => {
-      const q = await fetchQuote(symbol, apiKey);
-      const sig = runSignal(q.c, q.h, q.l, q.o);
+      const [q, candles] = await Promise.all([
+        fetchQuote(symbol, apiKey),
+        fetchDailyCandles(symbol, apiKey),
+      ]);
+      const patterns = candles
+        ? detectPatterns(candles.closes, candles.highs, candles.lows)
+        : [];
+      const sig = runSignal(q.c, q.h, q.l, q.o, q.pc, patterns);
 
       // Fetch real options data if Tradier key is configured
       const realOptions = tradierKey

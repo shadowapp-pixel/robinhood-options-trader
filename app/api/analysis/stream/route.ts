@@ -124,12 +124,13 @@ export async function GET(request: NextRequest) {
 
         // ── 3. Run agents sequentially ───────────────────────────────────────
 
-        // Agent 1 — Technical
+        // Agent 1 — Technical (includes chart pattern analysis)
         send({ type: 'progress', step: 1, agent: AGENTS[0], status: 'running' });
         const technical = await runTechnicalAgent(
           symbol, price, changePercent,
           bundle.indicators,
           bundle.candles?.closes ?? [],
+          bundle.patterns,
         );
         send({ type: 'progress', step: 1, agent: AGENTS[0], status: 'done' });
 

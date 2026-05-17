@@ -1,9 +1,12 @@
 /**
- * Finnhub data fetching + technical indicator computation
+ * Finnhub data fetching + technical indicator computation + chart pattern detection
  * Used exclusively by the AI Analysis agent pipeline (/api/analysis/stream)
  */
+import { detectPatterns, summarizePatterns, type PatternResult } from './pattern-detection';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+export type { PatternResult };
 
 export interface CandleData {
   closes:     number[];
@@ -63,6 +66,8 @@ export interface FinnhubBundle {
   fundamentals:  FundamentalsData | null;
   news:          NewsItem[];
   sentiment:     SentimentData | null;
+  patterns:      PatternResult[];       // detected chart patterns
+  patternSummary: string;               // human-readable summary for AI agents
   fetchedAt:     string;
 }
 
@@ -193,9 +198,10 @@ export async function fetchFinnhubBundle(
     fetch(`${base}/news-sentiment?symbol=${symbol}&${tk}`, { cache: 'no-store' }),
   ]);
 
-  // ── Candles + indicators ──────────────────────────────────────────────────
+  // ── Candles + indicators + chart patterns ────────────────────────────────
   let candles:    CandleData | null        = null;
   let indicators: ComputedIndicators | null = null;
+  let patterns:   PatternResult[]           = [];
   if (candleRes.status === 'fulfilled' && candleRes.value.ok) {
     try {
       const d = await candleRes.value.json() as {
@@ -204,6 +210,7 @@ export async function fetchFinnhubBundle(
       if (d.s === 'ok' && d.c && d.c.length > 0) {
         candles    = { closes: d.c, highs: d.h!, lows: d.l!, opens: d.o!, volumes: d.v!, timestamps: d.t! };
         indicators = computeIndicators(candles);
+        patterns   = detectPatterns(candles.closes, candles.highs, candles.lows);
       }
     } catch { /* ignore */ }
   }
@@ -262,6 +269,8 @@ export async function fetchFinnhubBundle(
   return {
     symbol, currentPrice, changePercent,
     candles, indicators, fundamentals, news, sentiment,
+    patterns,
+    patternSummary: summarizePatterns(patterns),
     fetchedAt: new Date().toISOString(),
   };
 }
