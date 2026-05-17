@@ -7,20 +7,20 @@ import Link from 'next/link';
 import ThemeToggle from '@/components/ThemeToggle';
 
 const FREE_FEATURES = [
-  'SPY & QQQ live signals',
-  '0DTE CALL / PUT suggestions',
-  'Day range bar & key levels',
+  'Full Market Tracker — SPY, QQQ, Mag7 & VXX live signals',
+  'CALL / PUT / NEUTRAL signal with confidence score',
+  'Day range bar, VWAP & key price levels',
+  'Interactive intraday charts per ticker',
   'Real-time 30-second refresh',
 ];
 
 const PRO_FEATURES = [
   'Everything in Free',
-  'Full Mag7 watchlist (AAPL, MSFT, GOOGL, AMZN, META, NVDA, TSLA)',
-  'VXX volatility tracker',
   'Trade Search — analyze any ticker on demand',
   'Virtual Contract Tracker — simulate +20% / −50% outcomes in real time',
   'Favorites Watchlist — save up to 20 stocks with live signals & charts',
   'Visual + audio alerts on prime signals',
+  '7-Agent AI Analysis — deep per-stock research report',
   'Access to the Learn center',
   'Priority support',
 ];
@@ -88,7 +88,7 @@ function PricingContent() {
             Start free. Upgrade when you&apos;re ready.
           </h1>
           <p className="text-[#9e9e9e] text-lg max-w-xl mx-auto">
-            Get live 0DTE signals for SPY &amp; QQQ free — or unlock the full Mag7 watchlist and real-time alerts with Pro.
+            The full Market Tracker — all 10 tickers, charts &amp; signals — is free forever. Upgrade Pro for Trade Search, AI Analysis &amp; more.
           </p>
         </div>
 
@@ -116,7 +116,7 @@ function PricingContent() {
                 <span className="text-4xl font-black">$0</span>
                 <span className="text-[#6b6b6b] mb-1">/mo</span>
               </div>
-              <p className="text-[#6b6b6b] text-sm">SPY & QQQ signals — no credit card needed</p>
+              <p className="text-[#6b6b6b] text-sm">Full Market Tracker — all 10 tickers, no credit card needed</p>
             </div>
 
             <ul className="space-y-3 flex-1 mb-8">

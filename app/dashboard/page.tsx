@@ -503,7 +503,7 @@ export default function Home() {
                     : 'text-[#9e9e9e] hover:text-white'
                 }`}
               >
-                {tab === 'tracker'   ? 'Market Tracker' :
+                {tab === 'tracker'   ? <span className="flex items-center gap-1.5">Market Tracker <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#00C805]/20 text-[#00C805] border border-[#00C805]/30 tracking-widest leading-none">FREE</span></span> :
                  tab === 'search'    ? 'Trade Search'   :
                  tab === 'favorites' ? '★ Favorites'    :
                                       '🤖 AI Analysis'}

@@ -8,16 +8,16 @@ const CACHE_TTL         = 28;   // seconds — slightly under the 30s client ref
 const TRADIER_CACHE_TTL = 60;   // Tradier data is ~15 min delayed; 60 s extra cache is negligible
 
 const WATCHLIST = [
-  { symbol: 'AAPL',  name: 'Apple',           type: 'mag7',  volTier: 'low',    pro: true  },
-  { symbol: 'MSFT',  name: 'Microsoft',        type: 'mag7',  volTier: 'low',    pro: true  },
-  { symbol: 'GOOGL', name: 'Alphabet',         type: 'mag7',  volTier: 'low',    pro: true  },
-  { symbol: 'AMZN',  name: 'Amazon',           type: 'mag7',  volTier: 'medium', pro: true  },
-  { symbol: 'META',  name: 'Meta',             type: 'mag7',  volTier: 'medium', pro: true  },
-  { symbol: 'NVDA',  name: 'NVIDIA',           type: 'mag7',  volTier: 'high',   pro: true  },
-  { symbol: 'TSLA',  name: 'Tesla',            type: 'mag7',  volTier: 'high',   pro: true  },
+  { symbol: 'AAPL',  name: 'Apple',           type: 'mag7',  volTier: 'low',    pro: false },
+  { symbol: 'MSFT',  name: 'Microsoft',        type: 'mag7',  volTier: 'low',    pro: false },
+  { symbol: 'GOOGL', name: 'Alphabet',         type: 'mag7',  volTier: 'low',    pro: false },
+  { symbol: 'AMZN',  name: 'Amazon',           type: 'mag7',  volTier: 'medium', pro: false },
+  { symbol: 'META',  name: 'Meta',             type: 'mag7',  volTier: 'medium', pro: false },
+  { symbol: 'NVDA',  name: 'NVIDIA',           type: 'mag7',  volTier: 'high',   pro: false },
+  { symbol: 'TSLA',  name: 'Tesla',            type: 'mag7',  volTier: 'high',   pro: false },
   { symbol: 'QQQ',   name: 'Nasdaq 100 ETF',   type: 'etf',   volTier: 'low',    pro: false },
   { symbol: 'SPY',   name: 'S&P 500 ETF',      type: 'etf',   volTier: 'low',    pro: false },
-  { symbol: 'VXX',   name: 'VIX Futures ETF',  type: 'index', volTier: 'high',   pro: true  },
+  { symbol: 'VXX',   name: 'VIX Futures ETF',  type: 'index', volTier: 'high',   pro: false },
 ];
 
 const VOL_MOVE: Record<string, number> = {

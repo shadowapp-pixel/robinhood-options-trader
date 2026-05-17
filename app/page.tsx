@@ -2,20 +2,20 @@ import Link from 'next/link';
 import ThemeToggle from '@/components/ThemeToggle';
 
 const FREE_FEATURES = [
-  'SPY & QQQ live signals',
-  '0DTE CALL / PUT suggestions',
-  'Day range bar & key levels',
+  'Full Market Tracker — SPY, QQQ, Mag7 & VXX live signals',
+  'CALL / PUT / NEUTRAL signal with confidence score',
+  'Day range bar, VWAP & key price levels',
+  'Interactive intraday charts per ticker',
   'Real-time 30-second refresh',
 ];
 
 const PRO_FEATURES = [
   'Everything in Free',
-  'Full Mag7 watchlist (AAPL, MSFT, GOOGL, AMZN, META, NVDA, TSLA)',
-  'VXX volatility tracker',
   'Trade Search — analyze any ticker on demand',
   'Virtual Contract Tracker — simulate +20% / −50% outcomes in real time',
   'Favorites Watchlist — save up to 20 stocks with live signals & charts',
   'Visual + audio alerts on prime signals',
+  '7-Agent AI Analysis — deep per-stock research report',
   'Access to the Learn center',
   'Priority support',
 ];
@@ -130,12 +130,15 @@ export default function HomePage() {
               <div className="w-11 h-11 rounded-xl bg-[#00C805]/10 border border-[#00C805]/20 flex items-center justify-center mb-5">
                 <span className="text-xl">📊</span>
               </div>
-              <h3 className="text-xl font-bold mb-2">Market Tracker</h3>
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-xl font-bold">Market Tracker</h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#00C805]/15 text-[#00C805] border border-[#00C805]/30 tracking-widest">FREE</span>
+              </div>
               <p className="text-[#9e9e9e] text-sm mb-6 leading-relaxed">
-                Live signal dashboard covering SPY, QQQ, the full Magnificent 7, and VXX. Each card shows the current price, intraday bias (CALL / PUT / NEUTRAL), VWAP indicator, confidence score, and 0DTE option setups — refreshed every 30 seconds.
+                Live signal dashboard covering SPY, QQQ, the full Magnificent 7, and VXX — completely free, no account required. Each card shows the current price, intraday bias (CALL / PUT / NEUTRAL), VWAP indicator, confidence score, and interactive chart.
               </p>
               <ul className="space-y-2.5 mb-8 flex-1">
-                {['VWAP + intraday trend analysis', 'CALL / PUT / NEUTRAL signal per ticker', 'Day range bar with key price levels', 'Visual & audio alerts on prime signals'].map(f => (
+                {['All 10 tickers — SPY, QQQ, Mag7 & VXX', 'CALL / PUT / NEUTRAL signal per ticker', 'Day range bar with VWAP & key levels', 'Interactive intraday chart per ticker'].map(f => (
                   <li key={f} className="flex items-start gap-2.5 text-sm text-[#c4c4c4]">
                     <CheckIcon green />
                     {f}
@@ -146,7 +149,7 @@ export default function HomePage() {
                 href="/dashboard"
                 className="block text-center py-2.5 rounded-xl bg-[#00C805]/10 border border-[#00C805]/30 text-[#00C805] text-sm font-bold hover:bg-[#00C805]/20 transition-colors"
               >
-                Open Market Tracker →
+                Open Market Tracker — Free →
               </Link>
             </div>
 
@@ -319,7 +322,7 @@ export default function HomePage() {
             <p className="text-[#00C805] text-xs font-bold tracking-widest uppercase mb-3">Pricing</p>
             <h2 className="text-3xl font-black tracking-tight mb-4">Start free. Upgrade when you&apos;re ready.</h2>
             <p className="text-[#9e9e9e] text-base max-w-xl mx-auto">
-              Get live signals for SPY &amp; QQQ at no cost — or unlock the full suite with Pro.
+              The full Market Tracker — all 10 tickers, charts &amp; signals — is free forever. Upgrade Pro for Trade Search, AI Analysis &amp; more.
             </p>
           </div>
 
@@ -333,7 +336,7 @@ export default function HomePage() {
                   <span className="text-4xl font-black">$0</span>
                   <span className="text-[#6b6b6b] mb-1">/mo</span>
                 </div>
-                <p className="text-[#6b6b6b] text-sm">SPY &amp; QQQ signals — no credit card needed</p>
+                <p className="text-[#6b6b6b] text-sm">Full Market Tracker — all 10 tickers, no credit card needed</p>
               </div>
               <ul className="space-y-3 flex-1 mb-8">
                 {FREE_FEATURES.map(f => (

@@ -410,23 +410,21 @@ function TickerCard({ entry, vixLevel, isPro }: { entry: TrackerEntry; vixLevel:
         {/* Expanded */}
         {expanded && entry.indicators && (
           <div className="mt-4 pt-4 border-t border-[#2a2a2a] space-y-5">
-            {/* Chart toggle — Pro only */}
-            {isPro && (
-              <button
-                onClick={() => setShowChart(v => !v)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                  showChart
-                    ? 'bg-[#00C805]/15 border-[#00C805]/30 text-[#00C805]'
-                    : 'bg-[#1e1e1e] border-[#2a2a2a] text-[#9e9e9e] hover:text-white'
-                }`}
-              >
-                <span>📈</span>
-                {showChart ? 'Hide Chart' : 'Show Chart'}
-              </button>
-            )}
+            {/* Chart toggle */}
+            <button
+              onClick={() => setShowChart(v => !v)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                showChart
+                  ? 'bg-[#00C805]/15 border-[#00C805]/30 text-[#00C805]'
+                  : 'bg-[#1e1e1e] border-[#2a2a2a] text-[#9e9e9e] hover:text-white'
+              }`}
+            >
+              <span>📈</span>
+              {showChart ? 'Hide Chart' : 'Show Chart'}
+            </button>
 
             {/* Chart */}
-            {isPro && showChart && (
+            {showChart && (
               <StockChart symbol={entry.symbol} />
             )}
             {/* Key levels */}
