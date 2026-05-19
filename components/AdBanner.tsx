@@ -20,7 +20,7 @@
 import { useEffect, useRef } from 'react';
 
 // ── Configuration — update these with your real values ──────────────────────
-const ADSENSE_PUBLISHER_ID = 'ca-pub-XXXXXXXXXXXXXXXX'; // ← replace with your publisher ID
+const ADSENSE_PUBLISHER_ID = 'ca-pub-4228062057434580';
 
 // Create one ad unit per placement in your AdSense dashboard and paste the slot IDs here
 const SLOT_IDS: Record<string, string> = {
@@ -47,7 +47,7 @@ const SIZE_STYLES: Record<AdSize, { width: number | string; height: number | str
   responsive:  { width: '100%', height: 'auto' },
 };
 
-const isPending = ADSENSE_PUBLISHER_ID === 'ca-pub-XXXXXXXXXXXXXXXX';
+const isPending = false; // publisher ID is configured
 
 export default function AdBanner({
   placement = 'default',
