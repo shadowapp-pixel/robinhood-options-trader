@@ -8,6 +8,7 @@ import StockChart         from '@/components/StockChart';
 import ThemeToggle        from '@/components/ThemeToggle';
 import FavoritesTracker   from '@/components/FavoritesTracker';
 import AIAnalysisPanel    from '@/components/AIAnalysisPanel';
+import AdBanner           from '@/components/AdBanner';
 
 type Tab = 'tracker' | 'search' | 'favorites' | 'ai';
 
@@ -566,33 +567,46 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-6 py-6">
 
         {/* ── Market Tracker tab ── */}
-        {activeTab === 'tracker' && <MarketTracker />}
+        {activeTab === 'tracker' && (
+          <div className="space-y-6">
+            <MarketTracker />
+            {/* Ad below the tracker — shown to all users */}
+            <div className="flex justify-center pt-2">
+              <AdBanner placement="dashboard-below-tracker" size="responsive" className="w-full max-w-3xl" />
+            </div>
+          </div>
+        )}
 
         {/* ── AI Analysis tab — paywall ── */}
         {activeTab === 'ai' && !isPro && (
-          <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl px-6 py-16 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#1e1e1e] border border-[#2a2a2a] flex items-center justify-center mx-auto mb-5 text-2xl">
-              🤖
+          <div className="space-y-4">
+            <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl px-6 py-16 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-[#1e1e1e] border border-[#2a2a2a] flex items-center justify-center mx-auto mb-5 text-2xl">
+                🤖
+              </div>
+              <p className="text-white font-bold text-lg mb-2">AI Analysis is a Pro feature</p>
+              <p className="text-[#6b6b6b] text-sm max-w-sm mx-auto mb-6">
+                Run a 7-agent deep analysis on any stock — Technical, Fundamental, Sentiment,
+                Bull/Bear Research, Risk Management, and a final Portfolio Manager decision.
+              </p>
+              {isLoaded && !user ? (
+                <SignInButton mode="modal">
+                  <button className="px-6 py-2.5 bg-[#00C805] hover:bg-[#00a004] text-black text-sm font-bold rounded-xl transition-colors shadow-[0_0_20px_rgba(0,200,5,0.25)]">
+                    Sign in to upgrade
+                  </button>
+                </SignInButton>
+              ) : (
+                <a
+                  href="/pricing"
+                  className="inline-block px-6 py-2.5 bg-[#00C805] hover:bg-[#00a004] text-black text-sm font-bold rounded-xl transition-colors shadow-[0_0_20px_rgba(0,200,5,0.25)]"
+                >
+                  Upgrade to Pro →
+                </a>
+              )}
             </div>
-            <p className="text-white font-bold text-lg mb-2">AI Analysis is a Pro feature</p>
-            <p className="text-[#6b6b6b] text-sm max-w-sm mx-auto mb-6">
-              Run a 7-agent deep analysis on any stock — Technical, Fundamental, Sentiment,
-              Bull/Bear Research, Risk Management, and a final Portfolio Manager decision.
-            </p>
-            {isLoaded && !user ? (
-              <SignInButton mode="modal">
-                <button className="px-6 py-2.5 bg-[#00C805] hover:bg-[#00a004] text-black text-sm font-bold rounded-xl transition-colors shadow-[0_0_20px_rgba(0,200,5,0.25)]">
-                  Sign in to upgrade
-                </button>
-              </SignInButton>
-            ) : (
-              <a
-                href="/pricing"
-                className="inline-block px-6 py-2.5 bg-[#00C805] hover:bg-[#00a004] text-black text-sm font-bold rounded-xl transition-colors shadow-[0_0_20px_rgba(0,200,5,0.25)]"
-              >
-                Upgrade to Pro →
-              </a>
-            )}
+            <div className="flex justify-center">
+              <AdBanner placement="dashboard-paywall" size="responsive" className="w-full max-w-2xl" />
+            </div>
           </div>
         )}
 
@@ -633,28 +647,33 @@ export default function Home() {
 
         {/* ── Trade Search tab — paywall ── */}
         {activeTab === 'search' && !isPro && (
-          <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl px-6 py-16 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#1e1e1e] border border-[#2a2a2a] flex items-center justify-center mx-auto mb-5">
-              <span className="text-2xl">🔒</span>
+          <div className="space-y-4">
+            <div className="bg-[#151515] border border-[#2a2a2a] rounded-2xl px-6 py-16 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-[#1e1e1e] border border-[#2a2a2a] flex items-center justify-center mx-auto mb-5">
+                <span className="text-2xl">🔒</span>
+              </div>
+              <p className="text-white font-bold text-lg mb-2">Trade Search is a Pro feature</p>
+              <p className="text-[#6b6b6b] text-sm max-w-sm mx-auto mb-6">
+                Search any ticker for live 0DTE call, put &amp; straddle setups — unlocked with Hood Option Pro.
+              </p>
+              {isLoaded && !user ? (
+                <SignInButton mode="modal">
+                  <button className="px-6 py-2.5 bg-[#00C805] hover:bg-[#00a004] text-black text-sm font-bold rounded-xl transition-colors shadow-[0_0_20px_rgba(0,200,5,0.25)]">
+                    Sign in to upgrade
+                  </button>
+                </SignInButton>
+              ) : (
+                <a
+                  href="/pricing"
+                  className="inline-block px-6 py-2.5 bg-[#00C805] hover:bg-[#00a004] text-black text-sm font-bold rounded-xl transition-colors shadow-[0_0_20px_rgba(0,200,5,0.25)]"
+                >
+                  Upgrade to Pro →
+                </a>
+              )}
             </div>
-            <p className="text-white font-bold text-lg mb-2">Trade Search is a Pro feature</p>
-            <p className="text-[#6b6b6b] text-sm max-w-sm mx-auto mb-6">
-              Search any ticker for live 0DTE call, put &amp; straddle setups — unlocked with Hood Option Pro.
-            </p>
-            {isLoaded && !user ? (
-              <SignInButton mode="modal">
-                <button className="px-6 py-2.5 bg-[#00C805] hover:bg-[#00a004] text-black text-sm font-bold rounded-xl transition-colors shadow-[0_0_20px_rgba(0,200,5,0.25)]">
-                  Sign in to upgrade
-                </button>
-              </SignInButton>
-            ) : (
-              <a
-                href="/pricing"
-                className="inline-block px-6 py-2.5 bg-[#00C805] hover:bg-[#00a004] text-black text-sm font-bold rounded-xl transition-colors shadow-[0_0_20px_rgba(0,200,5,0.25)]"
-              >
-                Upgrade to Pro →
-              </a>
-            )}
+            <div className="flex justify-center">
+              <AdBanner placement="dashboard-paywall" size="responsive" className="w-full max-w-2xl" />
+            </div>
           </div>
         )}
 

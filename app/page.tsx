@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import ThemeToggle from '@/components/ThemeToggle';
+import AdBanner from '@/components/AdBanner';
 
 const FREE_FEATURES = [
   'Full Market Tracker — SPY, QQQ, Mag7 & VXX live signals',
@@ -266,6 +267,11 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Ad: between Features and next section ── */}
+      <div className="max-w-4xl mx-auto px-6 py-8 flex justify-center">
+        <AdBanner placement="landing-between-sections" size="responsive" className="w-full max-w-3xl" />
+      </div>
+
       {/* ── Referral Banner ── */}
       <section className="border-t border-[#2a2a2a] bg-[#0a0a0a]">
         <div className="max-w-7xl mx-auto px-6 py-14 text-center">
@@ -385,6 +391,11 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── Ad: below pricing plans ── */}
+      <div className="max-w-4xl mx-auto px-6 py-8 flex justify-center">
+        <AdBanner placement="landing-below-pricing" size="responsive" className="w-full max-w-3xl" />
+      </div>
 
       {/* ── CTA Banner ── */}
       <section className="border-t border-[#2a2a2a]">
