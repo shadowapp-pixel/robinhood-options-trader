@@ -49,6 +49,7 @@ export default function HomePage() {
             <a href="#features" className="text-sm text-[#9e9e9e] hover:text-white transition-colors">Features</a>
             <a href="#pricing" className="text-sm text-[#9e9e9e] hover:text-white transition-colors">Pricing</a>
             <Link href="/learn" className="text-sm text-[#9e9e9e] hover:text-white transition-colors">Learn</Link>
+            <Link href="/about" className="text-sm text-[#9e9e9e] hover:text-white transition-colors">About</Link>
             <Link href="/dashboard" className="text-sm text-[#9e9e9e] hover:text-white transition-colors">App</Link>
           </nav>
           <div className="flex items-center gap-3">
@@ -439,10 +440,13 @@ export default function HomePage() {
               </div>
               <span className="text-sm font-bold text-white">Hood Option</span>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-6 flex-wrap justify-center">
               <Link href="/dashboard" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">App</Link>
               <Link href="/pricing" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">Pricing</Link>
               <Link href="/learn" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">Learn</Link>
+              <Link href="/about" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">About</Link>
+              <Link href="/privacy" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">Terms of Service</Link>
             </div>
           </div>
 

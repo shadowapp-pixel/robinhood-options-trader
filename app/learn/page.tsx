@@ -669,11 +669,16 @@ export default function LearnPage() {
       </div>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-[#2a2a2a] mt-12">
-        <div className="max-w-4xl mx-auto px-6 py-6">
+      <footer className="border-t border-[#2a2a2a] mt-12 bg-[#111111]">
+        <div className="max-w-4xl mx-auto px-6 py-6 space-y-4">
           <p className="text-[11px] text-[#3a3a3a] leading-relaxed text-center">
             This page is for educational purposes only and does not constitute financial advice. Options trading involves substantial risk. Always consult a licensed financial professional before trading.
           </p>
+          <div className="flex items-center justify-center gap-6 flex-wrap">
+            <Link href="/about" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">About</Link>
+            <Link href="/privacy" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">Terms of Service</Link>
+          </div>
         </div>
       </footer>
 

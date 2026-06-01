@@ -210,6 +210,19 @@ function PricingContent() {
             Affiliate disclosure: We may receive compensation if you sign up through this link. Hood Option is not affiliated with Robinhood Markets, Inc.
           </p>
         </div>
+
+        {/* Footer */}
+        <footer className="border-t border-[#2a2a2a] mt-10 pt-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs text-[#3a3a3a]">© {new Date().getFullYear()} Hood Option. All rights reserved.</p>
+            <div className="flex items-center gap-4">
+              <Link href="/about" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">About</Link>
+              <Link href="/privacy" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="text-xs text-[#6b6b6b] hover:text-white transition-colors">Terms of Service</Link>
+            </div>
+          </div>
+        </footer>
+
       </div>
     </main>
   );
